@@ -8,4 +8,6 @@ bin/
 dev/
 .test
 test/integration/controller/report*
+test/integration/controller/*.out
+test/integration/controller/*.log
 .vscode

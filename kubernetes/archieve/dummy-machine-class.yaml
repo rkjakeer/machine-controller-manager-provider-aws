@@ -1,0 +1,32 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineClass
+metadata:
+  name: test-mc-dummy
+providerSpec:
+  ami: ami-06672bb04fdda3653
+  blockDevices:
+  - ebs:
+      deleteOnTermination: true
+      encrypted: true
+      volumeSize: 50
+      volumeType: gp2
+  iam:
+    name: shoot--mcm-test--tonia-aws-nodes
+  keyName: shoot--mcm-test--tonia-aws-ssh-publickey
+  machineType: m5.large
+  networkInterfaces:
+  - securityGroupIDs:
+    - sg-0858967396d33fa23
+    subnetID: subnet-06630e4b3e2dfacaf
+  region: eu-west-1
+  tags:
+    kubernetes.io/cluster/shoot--mcm-test--tonia-aws: "1"
+    kubernetes.io/role/mcm: "1"
+    mcmtest: integration-test
+    node.kubernetes.io/role: mcm
+    worker.garden.sapcloud.io/group: worker-v2k7h
+    worker.gardener.cloud/pool: worker-v2k7h
+    worker.gardener.cloud/system-components: "true"
+secretRef:
+  name: shoot--mcm-test--tonia-aws-worker-v2k7h-z1-f94f9
+  namespace: default

@@ -11,10 +11,11 @@ spec:
     #revision: 0 [uncommment this when you want to rollback to previous version]
   replicas: 3 # Number of healthy replicas that should always be healthy
   minReadySeconds: 500 # Minimum time to wait for machine to be ready
+  progressDeadlineSeconds: 1200
   strategy:
     type: RollingUpdate # Strategy for update RollingUpdate/Recreate
     rollingUpdate:
-      maxSurge: 1 # Maximum addition machines that spawned over the desired replicas during update
+      maxSurge: 0 # Maximum addition machines that spawned over the desired replicas during update
       maxUnavailable: 1 # Maximum unavailable machines that the cluster can tolerate
   selector:
     matchLabels:

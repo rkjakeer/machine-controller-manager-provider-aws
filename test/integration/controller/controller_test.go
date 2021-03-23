@@ -124,6 +124,28 @@ var _ = Describe("Integration test", func() {
 		Eventually(targetKubeCluster.NumberOfReadyNodes, 180, 5).Should(BeNumerically("==", targetKubeCluster.NumberOfNodes()))
 	})
 
+	// Check for Orphaned Resources Before Test Execution
+	Describe("Check for orphaned resources before test execution", func() {
+		Context("In target cluster", func() {
+			Context("Check if there are any resources matching the tag exists", func() {
+				It("Should list any orphaned resources if available", func() {
+					// if available should delete orphaned resources in cloud provider
+					machineClass, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses("default").Get("test-mc", metav1.GetOptions{})
+					if err == nil {
+						secret, err := controlKubeCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+						if err == nil {
+							beforeTestExecutionInstances, beforeTestExecutionAvailVols, err = helpers.CheckForOrphanedResources(machineClass, secret)
+							//Check there is no error occured
+							Expect(err).NotTo(HaveOccurred())
+						}
+						Expect(err).NotTo(HaveOccurred())
+					}
+					Expect(err).NotTo(HaveOccurred())
+				})
+			})
+		})
+	})
+
 	Describe("Machine Resource", func() {
 		Describe("Creating one machine resource", func() {
 			Context("In Control cluster", func() {
@@ -322,21 +344,29 @@ var _ = Describe("Integration test", func() {
 
 	// ---------------------------------------------------------------------------------------
 	// Testcase #03 | Orphaned Resources
-	Describe("Orphaned resources", func() {
-		Context("Check if there are any resources matching the tag exists", func() {
-			It("Should list any orphaned resources if available", func() {
-				// if available should delete orphaned resources in cloud provider
-				machineClass, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses("default").Get("test-mc", metav1.GetOptions{})
-				if err == nil {
-					secret, err := controlKubeCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+	Describe("Check for orphaned resources", func() {
+		Context("In target cluster", func() {
+			Context("Check if there are any resources matching the tag exists", func() {
+				It("Should list any orphaned resources if available", func() {
+					// if available should delete orphaned resources in cloud provider
+					machineClass, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses("default").Get("test-mc", metav1.GetOptions{})
 					if err == nil {
-						err := helpers.CheckForOrphanedResources(machineClass, secret)
-						//Check there is no error occured
+						secret, err := controlKubeCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+						if err == nil {
+							afterTestExecutionInstances, afterTestExecutionAvailVols, err := helpers.CheckForOrphanedResources(machineClass, secret)
+							//Check there is no error occured
+							Expect(err).NotTo(HaveOccurred())
+							if err == nil {
+								orphanedResourceInstances := helpers.DifferenceOrphanedResources(beforeTestExecutionInstances, afterTestExecutionInstances)
+								Expect(orphanedResourceInstances).To(BeNil())
+								orphanedResourceAvailVols := helpers.DifferenceOrphanedResources(beforeTestExecutionAvailVols, afterTestExecutionAvailVols)
+								Expect(orphanedResourceAvailVols).To(BeNil())
+							}
+						}
 						Expect(err).NotTo(HaveOccurred())
 					}
 					Expect(err).NotTo(HaveOccurred())
-				}
-				Expect(err).NotTo(HaveOccurred())
+				})
 			})
 		})
 	})

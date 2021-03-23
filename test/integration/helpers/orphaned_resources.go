@@ -1,12 +1,45 @@
 package helpers
 
 import (
+	"fmt"
+
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 )
 
+type ProviderResourcesTracker struct {
+	InitialVolumes   []string
+	InitialInstances []string
+	MachineClass     *v1alpha1.MachineClass
+	Secret           *v1.Secret
+}
+
+func NewProviderResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret) (p *ProviderResourcesTracker, e error) {
+	clusterTag := "tag:kubernetes.io/cluster/shoot--mcm-test--tonia-aws"
+	clusterTagValue := "1"
+
+	p = &ProviderResourcesTracker{
+		MachineClass: machineClass,
+		Secret:       secret,
+	}
+
+	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secret)
+	if err == nil {
+		p.InitialInstances = instances
+		volumes, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secret)
+		if err == nil {
+			p.InitialVolumes = volumes
+			return p, nil
+		} else {
+			return p, err
+		}
+	} else {
+		return p, err
+	}
+}
+
 // CheckForOrphanedResources will search the cloud provider for orphaned resources that are left behind after the test cases
-func CheckForOrphanedResources(machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([]string, []string, error) {
+func (p *ProviderResourcesTracker) CheckForResources() ([]string, []string, error) {
 	// Check for VM instances with matching tags/labels
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
@@ -14,13 +47,13 @@ func CheckForOrphanedResources(machineClass *v1alpha1.MachineClass, secret *v1.S
 	clusterTag := "tag:kubernetes.io/cluster/shoot--mcm-test--tonia-aws"
 	clusterTagValue := "1"
 
-	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secret)
+	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", p.MachineClass, p.Secret)
 	if err != nil {
 		return instances, nil, err
 	}
 
 	// Check for available volumes in cloud provider with tag/label [Status:available]
-	availVols, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secret)
+	availVols, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, p.MachineClass, p.Secret)
 	if err != nil {
 		return instances, availVols, err
 	}
@@ -61,4 +94,25 @@ func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecutio
 	}
 
 	return diff
+}
+
+// DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
+func (p *ProviderResourcesTracker) IsOrphanedResourcesAvailable() bool {
+	afterTestExecutionInstances, afterTestExecutionAvailVols, err := p.CheckForResources()
+	//Check there is no error occured
+	if err == nil {
+		orphanedResourceInstances := DifferenceOrphanedResources(p.InitialInstances, afterTestExecutionInstances)
+		if orphanedResourceInstances != nil {
+			fmt.Println("orphaned instances are:", orphanedResourceInstances)
+			return true
+		}
+		orphanedResourceAvailVols := DifferenceOrphanedResources(p.InitialVolumes, afterTestExecutionAvailVols)
+		if orphanedResourceAvailVols != nil {
+			fmt.Println("orphaned volumes are:", orphanedResourceAvailVols)
+			return true
+		}
+		return false
+	}
+	//assuming there are orphaned resources as probe can not be done
+	return true
 }

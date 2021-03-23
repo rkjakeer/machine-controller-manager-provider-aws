@@ -19,8 +19,11 @@ IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
 CONTROL_NAMESPACE  := default
-CONTROL_KUBECONFIG := dev/target-kubeconfig.yaml
-TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
+CONTROL_KUBECONFIG := /Users/i348967/.kube/config-tonia-control
+TARGET_KUBECONFIG  := /Users/i348967/.kube/config-tonia-aws
+# CLOUD_PROVIDER_SECRET := /Users/i348967/local-storage/src/github.com/toniajuliejackson/machine-controller-manager-provider-aws/dev/cp_secret_new.yaml
+# CONTROL_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-aws-seed-local06022021.yaml
+# TARGET_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-ash-shoot-06022021.yaml
 
 #########################################
 # Rules for running helper scripts
@@ -83,6 +86,15 @@ update-dependencies:
 .PHONY: test-unit
 test-unit:
 	.ci/test
+
+.PHONY: test-integration
+test-integration: export cloudProviderSecret=$(CLOUD_PROVIDER_SECRET)
+test-integration: export controlKubeconfig=$(CONTROL_KUBECONFIG)
+test-integration: export targetKubeconfig=$(TARGET_KUBECONFIG)
+test-integration: export mcContainerImage=$(MCM_IMAGE_TAG)
+test-integration: export mcmContainerImageTag=$(MC_IMAGE_TAG)
+test-integration: 
+	.ci/integration_test
 
 #########################################
 # Rules for build/release

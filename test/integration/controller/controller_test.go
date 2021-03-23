@@ -489,9 +489,8 @@ func startMachineControllerManager(ctx context.Context) error {
 	*/
 	command := fmt.Sprintf("make start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s", controlKubeConfigPath, targetKubeConfigPath)
 	log.Println("starting MachineControllerManager with command: ", command)
-	dst_path := fmt.Sprintf("%s", mcmRepoPath)
 	wg.Add(1)
-	go execCommandAsRoutine(ctx, command, dst_path, mcm_logFile)
+	go execCommandAsRoutine(ctx, command, mcmRepoPath, mcm_logFile)
 	return nil
 }
 
@@ -577,10 +576,12 @@ func createDummyMachineClass() error {
 	}
 
 	var newMachineClass *v1alpha1.MachineClass
+	machineClass:=  machineClasses.Items[0]
+	
 
 	// Create machine-class using yaml and any of existing machineclass resource combined
-	for _, machineClass := range machineClasses.Items {
-
+	resources:= []string{"test-mc", "test-mc"}
+	for _, resource_name := range resources {
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			result, getErr := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(namespace).Get(machineClass.GetName(), metav1.GetOptions{})
 			if getErr != nil {
@@ -589,7 +590,7 @@ func createDummyMachineClass() error {
 			}
 			//machineClassOrigObj = *result
 			metaData := metav1.ObjectMeta{
-				Name:        "test-mc",
+				Name:        resource_name,
 				Labels:      result.ObjectMeta.Labels,
 				Annotations: result.ObjectMeta.Annotations,
 			}
@@ -614,14 +615,17 @@ func createDummyMachineClass() error {
 
 		retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// read machineClass patch yaml file ("../../../kubernetes/machine-class-patch.yaml" ) and update machine class(machineClass)
-			data, _ := os.ReadFile("../../../kubernetes/machine-class-patch.yaml")
+			data, err := os.ReadFile("../../../kubernetes/machine-class-patch.yaml")
+			if err != nil {
+				// Error reading file. So skipping it
+				return nil
+			}
 			_, patchErr := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(namespace).Patch(newMachineClass.Name, types.JSONPatchType, data)
 			return patchErr
 		})
 		if retryErr != nil {
 			return retryErr
 		}
-
 	}
 	return nil
 }

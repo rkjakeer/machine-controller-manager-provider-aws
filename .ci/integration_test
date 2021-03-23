@@ -18,7 +18,7 @@ set -e
 # SOURCE_PATH - path to component repository root directory.
 
 
-cd /Users/i348967/local-storage/src/github.com/rkjakeer/machine-controller-manager-provider-aws/test/integration/controller
+cd ../test/integration/controller
 if ! hash ginkgo; then
     # Install Ginkgo (test framework) to be able to execute the tests.
     echo "Fetching Ginkgo frawework"

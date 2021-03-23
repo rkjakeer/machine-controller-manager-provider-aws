@@ -10,5 +10,5 @@ spec:
   command: [bash, -c]
   args:
   - >-
-    make test-integration 
+    make test-integration
   image: eu.gcr.io/gardener-project/cc/job-image-golang:0.11.0

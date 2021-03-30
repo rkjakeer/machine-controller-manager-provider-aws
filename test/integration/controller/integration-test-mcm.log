@@ -1,0 +1,78 @@
+I0330 16:19:50.256426    6748 flags.go:52] FLAG: --add-dir-header="false"
+I0330 16:19:50.256958    6748 flags.go:52] FLAG: --address="0.0.0.0"
+I0330 16:19:50.257056    6748 flags.go:52] FLAG: --alsologtostderr="false"
+I0330 16:19:50.257072    6748 flags.go:52] FLAG: --autoscaler-scaldown-annotation-during-rollout="true"
+I0330 16:19:50.257092    6748 flags.go:52] FLAG: --bootstrap-token-auth-extra-groups=""
+I0330 16:19:50.257111    6748 flags.go:52] FLAG: --cloud-provider=""
+I0330 16:19:50.257130    6748 flags.go:52] FLAG: --concurrent-syncs="10"
+I0330 16:19:50.257151    6748 flags.go:52] FLAG: --contention-profiling="false"
+I0330 16:19:50.257187    6748 flags.go:52] FLAG: --control-kubeconfig="/Users/i348967/.kube/kubeconfigs_kubeconfig-aws-seed-local06022021.yaml"
+I0330 16:19:50.257248    6748 flags.go:52] FLAG: --controller-start-interval="0s"
+I0330 16:19:50.257272    6748 flags.go:52] FLAG: --delete-migrated-machine-class="false"
+I0330 16:19:50.257288    6748 flags.go:52] FLAG: --kube-api-burst="30"
+I0330 16:19:50.257309    6748 flags.go:52] FLAG: --kube-api-content-type="application/vnd.kubernetes.protobuf"
+I0330 16:19:50.257327    6748 flags.go:52] FLAG: --kube-api-qps="20"
+I0330 16:19:50.257347    6748 flags.go:52] FLAG: --leader-elect="true"
+I0330 16:19:50.257363    6748 flags.go:52] FLAG: --leader-elect-lease-duration="15s"
+I0330 16:19:50.257379    6748 flags.go:52] FLAG: --leader-elect-renew-deadline="10s"
+I0330 16:19:50.257395    6748 flags.go:52] FLAG: --leader-elect-resource-lock="endpoints"
+I0330 16:19:50.257409    6748 flags.go:52] FLAG: --leader-elect-retry-period="2s"
+I0330 16:19:50.257424    6748 flags.go:52] FLAG: --log-backtrace-at=":0"
+I0330 16:19:50.257445    6748 flags.go:52] FLAG: --log-dir=""
+I0330 16:19:50.257459    6748 flags.go:52] FLAG: --log-file=""
+I0330 16:19:50.257474    6748 flags.go:52] FLAG: --log-file-max-size="1800"
+I0330 16:19:50.257489    6748 flags.go:52] FLAG: --log-flush-frequency="5s"
+I0330 16:19:50.257504    6748 flags.go:52] FLAG: --logtostderr="true"
+I0330 16:19:50.257519    6748 flags.go:52] FLAG: --machine-creation-timeout="20m0s"
+I0330 16:19:50.257535    6748 flags.go:52] FLAG: --machine-drain-timeout="5m0s"
+I0330 16:19:50.257550    6748 flags.go:52] FLAG: --machine-health-timeout="10m0s"
+I0330 16:19:50.257565    6748 flags.go:52] FLAG: --machine-max-evict-retries="360"
+I0330 16:19:50.257580    6748 flags.go:52] FLAG: --machine-pv-detach-timeout="2m0s"
+I0330 16:19:50.257595    6748 flags.go:52] FLAG: --machine-safety-apiserver-statuscheck-period="1m0s"
+I0330 16:19:50.257610    6748 flags.go:52] FLAG: --machine-safety-apiserver-statuscheck-timeout="30s"
+I0330 16:19:50.257625    6748 flags.go:52] FLAG: --machine-safety-orphan-vms-period="30m0s"
+I0330 16:19:50.257642    6748 flags.go:52] FLAG: --machine-safety-overshooting-period="1m0s"
+I0330 16:19:50.257656    6748 flags.go:52] FLAG: --min-resync-period="12h0m0s"
+I0330 16:19:50.257671    6748 flags.go:52] FLAG: --namespace="default"
+I0330 16:19:50.257686    6748 flags.go:52] FLAG: --node-conditions="KernelDeadlock,ReadonlyFilesystem,DiskPressure,NetworkUnavailable"
+I0330 16:19:50.257722    6748 flags.go:52] FLAG: --port="10258"
+I0330 16:19:50.257745    6748 flags.go:52] FLAG: --profiling="true"
+I0330 16:19:50.257762    6748 flags.go:52] FLAG: --safety-down="1"
+I0330 16:19:50.257778    6748 flags.go:52] FLAG: --safety-up="2"
+I0330 16:19:50.257794    6748 flags.go:52] FLAG: --skip-headers="false"
+I0330 16:19:50.257809    6748 flags.go:52] FLAG: --skip-log-headers="false"
+I0330 16:19:50.257826    6748 flags.go:52] FLAG: --stderrthreshold="2"
+I0330 16:19:50.257839    6748 flags.go:52] FLAG: --target-kubeconfig="/Users/i348967/.kube/kubeconfigs_kubeconfig-ash-shoot-06022021.yaml"
+I0330 16:19:50.257856    6748 flags.go:52] FLAG: --v="3"
+I0330 16:19:50.257870    6748 flags.go:52] FLAG: --vmodule=""
+I0330 16:19:50.276795    6748 leaderelection.go:241] attempting to acquire leader lease  default/machine-controller-manager...
+I0330 16:19:52.987084    6748 leaderelection.go:251] successfully acquired lease default/machine-controller-manager
+I0330 16:19:52.987736    6748 event.go:255] Event(v1.ObjectReference{Kind:"Endpoints", Namespace:"default", Name:"machine-controller-manager", UID:"538c031b-ffcd-4c8c-a652-0048bafc357c", APIVersion:"v1", ResourceVersion:"40195332", FieldPath:""}): type: 'Normal' reason: 'LeaderElection' C02D40EHP3YV became leader
+I0330 16:20:04.606934    6748 controllermanager.go:281] Starting shared informers
+I0330 16:20:04.609192    6748 reflector.go:120] Starting reflector *v1alpha1.MachineSet (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609322    6748 reflector.go:120] Starting reflector *v1alpha1.Machine (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609401    6748 reflector.go:158] Listing and watching *v1alpha1.MachineSet from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609409    6748 reflector.go:158] Listing and watching *v1alpha1.Machine from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609935    6748 reflector.go:120] Starting reflector *v1alpha1.AWSMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609967    6748 reflector.go:120] Starting reflector *v1.Node (12h0m0s) from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.609275    6748 reflector.go:120] Starting reflector *v1alpha1.GCPMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.610106    6748 reflector.go:158] Listing and watching *v1alpha1.GCPMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609195    6748 reflector.go:120] Starting reflector *v1alpha1.OpenStackMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.610181    6748 reflector.go:158] Listing and watching *v1alpha1.OpenStackMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.609982    6748 reflector.go:158] Listing and watching *v1alpha1.AWSMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.610451    6748 reflector.go:158] Listing and watching *v1.Node from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.609946    6748 reflector.go:120] Starting reflector *v1alpha1.MachineDeployment (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.610679    6748 reflector.go:158] Listing and watching *v1alpha1.MachineDeployment from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611012    6748 reflector.go:120] Starting reflector *v1alpha1.PacketMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611055    6748 reflector.go:158] Listing and watching *v1alpha1.PacketMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611163    6748 reflector.go:120] Starting reflector *v1.Secret (12h0m0s) from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.611209    6748 reflector.go:158] Listing and watching *v1.Secret from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.611253    6748 reflector.go:120] Starting reflector *v1.PersistentVolumeClaim (12h0m0s) from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.611346    6748 reflector.go:158] Listing and watching *v1.PersistentVolumeClaim from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.611401    6748 reflector.go:120] Starting reflector *v1alpha1.AzureMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611434    6748 reflector.go:158] Listing and watching *v1alpha1.AzureMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611257    6748 reflector.go:120] Starting reflector *v1alpha1.AlicloudMachineClass (12h0m0s) from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611480    6748 reflector.go:158] Listing and watching *v1alpha1.AlicloudMachineClass from github.com/rkjakeer/machine-controller-manager-provider-aws/dev/mcm/pkg/client/informers/externalversions/factory.go:117
+I0330 16:20:04.611057    6748 reflector.go:120] Starting reflector *v1.PersistentVolume (12h0m0s) from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:04.611772    6748 reflector.go:158] Listing and watching *v1.PersistentVolume from k8s.io/client-go/informers/factory.go:134
+I0330 16:20:09.012422    6748 controller.go:508] Starting machine-controller-manager

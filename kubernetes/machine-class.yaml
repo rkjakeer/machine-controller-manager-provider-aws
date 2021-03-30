@@ -6,7 +6,6 @@ apiVersion: machine.sapcloud.io/v1alpha1
 kind: MachineClass
 metadata:
   name: test-mc
-  namespace: default # Namespace where the controller would watch
 providerSpec:
   # dummy-field: "provider-api based fields goes here"
   ami: ami-0f32041348763f71c
@@ -26,7 +25,7 @@ providerSpec:
     subnetID: subnet-0a6244ac588edc524
   region: ap-south-1
   tags:
-    kubernetes.io/cluster/shoot--mcm-test--jakeer-aws: "1"
+    kubernetes.io/cluster/shoot--mcm-test--tonia-aws: "1"
     kubernetes.io/role/mcm: "1"
     node.kubernetes.io/role: mcm
     worker.garden.sapcloud.io/group: worker-brisb

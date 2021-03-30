@@ -44,7 +44,8 @@ func NewCluster(kubeConfigPath string) (c *Cluster, e error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err == nil {
 		c = &Cluster{
-			restConfig: config,
+			kubeConfigFilePath: kubeConfigPath,
+			restConfig:         config,
 		}
 	} else {
 		c = &Cluster{}
@@ -83,9 +84,12 @@ func (c *Cluster) ClusterName() (string, error) {
 	*/
 
 	var clusterName string
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&clientcmd.ClientConfigLoadingRules{ExplicitPath: c.kubeConfigFilePath},
-		&clientcmd.ConfigOverrides{})
-	config, err := kubeConfig.RawConfig()
+	//kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&clientcmd.ClientConfigLoadingRules{ExplicitPath: c.kubeConfigFilePath},
+	//	&clientcmd.ConfigOverrides{})
+	config, err := clientcmd.LoadFromFile(c.kubeConfigFilePath)
+	if err != nil {
+		return clusterName, err
+	}
 	for contextName, context := range config.Contexts {
 		if contextName == config.CurrentContext {
 			clusterName = context.Cluster

@@ -12,15 +12,18 @@ type ProviderResourcesTracker struct {
 	InitialInstances []string
 	MachineClass     *v1alpha1.MachineClass
 	Secret           *v1.Secret
+	ClusterName      string
 }
 
-func NewProviderResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret) (p *ProviderResourcesTracker, e error) {
-	clusterTag := "tag:kubernetes.io/cluster/shoot--mcm-test--tonia-aws"
+func NewProviderResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) (p *ProviderResourcesTracker, e error) {
+
+	clusterTag := "tag:kubernetes.io/cluster/" + clusterName
 	clusterTagValue := "1"
 
 	p = &ProviderResourcesTracker{
 		MachineClass: machineClass,
 		Secret:       secret,
+		ClusterName:  clusterName,
 	}
 
 	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secret)
@@ -44,7 +47,7 @@ func (p *ProviderResourcesTracker) CheckForResources() ([]string, []string, erro
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
 
-	clusterTag := "tag:kubernetes.io/cluster/shoot--mcm-test--tonia-aws"
+	clusterTag := "tag:kubernetes.io/cluster/" + p.ClusterName
 	clusterTagValue := "1"
 
 	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", p.MachineClass, p.Secret)

@@ -78,7 +78,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 }
 
 // ApplyYamlFile uses yaml to create resources in kubernetes
-func (c *Cluster) ApplyYamlFile(filePath string) error {
+func (c *Cluster) ApplyYamlFile(filePath string, namespace string) error {
 	/* TO-DO: This function checks for the availability of filePath
 	if available, then uses kubectl to perform kubectl apply on that file
 	*/
@@ -96,19 +96,19 @@ func (c *Cluster) ApplyYamlFile(filePath string) error {
 				}
 			case "MachineClass":
 				crd := obj.(*v1alpha1.MachineClass)
-				_, err := c.McmClient.MachineV1alpha1().MachineClasses("default").Create(crd)
+				_, err := c.McmClient.MachineV1alpha1().MachineClasses(namespace).Create(crd)
 				if err != nil {
 					return err
 				}
 			case "Machine":
 				crd := obj.(*v1alpha1.Machine)
-				_, err := c.McmClient.MachineV1alpha1().Machines("default").Create(crd)
+				_, err := c.McmClient.MachineV1alpha1().Machines(namespace).Create(crd)
 				if err != nil {
 					return err
 				}
 			case "MachineDeployment":
 				crd := obj.(*v1alpha1.MachineDeployment)
-				_, err := c.McmClient.MachineV1alpha1().MachineDeployments("default").Create(crd)
+				_, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Create(crd)
 				if err != nil {
 					return err
 				}

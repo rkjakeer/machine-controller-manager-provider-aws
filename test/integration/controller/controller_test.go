@@ -98,6 +98,7 @@ var _ = Describe("Integration test", func() {
 		}
 
 		if len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0 {
+			log.Println("length is ", len(mcContainerImageTag))
 			/* - if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
 			create/update machinecontrollermanager deployment in the control-cluster with specified image
 			- crds already exist in the cluster.
@@ -109,6 +110,13 @@ var _ = Describe("Integration test", func() {
 			/* 	- applyCrds from the mcm repo by cloning it and then
 			- as mcmContainerImage is empty, run mc and mcm locally
 			*/
+			By("Cloning Machine-Controller-Manager github repo")
+			Expect(cloneMcmRepo()).To(BeNil())
+
+			if controlKubeCluster.IsSeed(targetKubeCluster) {
+				By("Scaledown existing machine controllers")
+				Expect(scaleMcmDeployment(0)).To(BeNil())
+			}
 
 			By("Starting Machine Controller Manager")
 			Expect(startMachineControllerManager(ctx)).To(BeNil())
@@ -120,16 +128,20 @@ var _ = Describe("Integration test", func() {
 		if err == nil {
 			secret, err := controlKubeCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
 			if err == nil {
-				providerResourcesTracker, err = helpers.NewProviderResourcesTracker(machineClass, secret)
+				clusterName, err := controlKubeCluster.ClusterName()
+				log.Println("control cluster nmae is :", clusterName)
+				Expect(err).NotTo(HaveOccurred())
+				providerResourcesTracker, err = helpers.NewProviderResourcesTracker(machineClass, secret, clusterName)
 				//Check there is no error occured
 				Expect(err).NotTo(HaveOccurred())
 			}
 			Expect(err).NotTo(HaveOccurred())
 		}
 		Expect(err).NotTo(HaveOccurred())
+		log.Println("Orphan resource tracker initialized")
 	})
 	BeforeEach(func() {
-		if !controlKubeCluster.IsSeed(targetKubeCluster) {
+		if !controlKubeCluster.IsSeed(targetKubeCluster) || len(mcContainerImageTag) == 0 || len(mcmContainerImageTag) == 0 {
 			By("Check the number of goroutines running are 2")
 			Expect(numberOfBgProcesses).To(BeEquivalentTo(2))
 		}
@@ -139,7 +151,7 @@ var _ = Describe("Integration test", func() {
 		Eventually(targetKubeCluster.NumberOfReadyNodes, 180, 5).Should(BeNumerically("==", targetKubeCluster.NumberOfNodes()))
 	})
 
-	Describe("Machine Resource", func() {
+	FDescribe("Machine Resource", func() {
 		Describe("Creating one machine resource", func() {
 			Context("In Control cluster", func() {
 
@@ -149,7 +161,7 @@ var _ = Describe("Integration test", func() {
 				It("should not lead to any errors", func() {
 					// apply machine resource yaml file
 					initialNodes = targetKubeCluster.NumberOfNodes()
-					Expect(controlKubeCluster.ApplyYamlFile("../../../kubernetes/machine.yaml")).To(BeNil())
+					Expect(controlKubeCluster.ApplyYamlFile("../../../kubernetes/machine.yaml", controlClusterNamespace)).To(BeNil())
 					//fmt.Println("wait for 30 sec before probing for nodes")
 				})
 				It("should list existing +1 nodes in target cluster", func() {
@@ -161,16 +173,16 @@ var _ = Describe("Integration test", func() {
 		})
 
 		Describe("Deleting one machine resource", func() {
-			BeforeEach(func() {
-				// Check there are no machine deployment and machinesets resources existing
-				deploymentList, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).List(metav1.ListOptions{})
-				Expect(len(deploymentList.Items)).Should(BeZero(), "Zero MachineDeployments should exist")
-				Expect(err).Should(BeNil())
-				machineSetsList, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineSets(controlClusterNamespace).List(metav1.ListOptions{})
-				Expect(len(machineSetsList.Items)).Should(BeZero(), "Zero Machinesets should exist")
-				Expect(err).Should(BeNil())
+			// BeforeEach(func() {
+			// 	// Check there are no machine deployment and machinesets resources existing
+			// 	deploymentList, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).List(metav1.ListOptions{})
+			// 	Expect(len(deploymentList.Items)).Should(BeZero(), "Zero MachineDeployments should exist")
+			// 	Expect(err).Should(BeNil())
+			// 	machineSetsList, err := controlKubeCluster.McmClient.MachineV1alpha1().MachineSets(controlClusterNamespace).List(metav1.ListOptions{})
+			// 	Expect(len(machineSetsList.Items)).Should(BeZero(), "Zero Machinesets should exist")
+			// 	Expect(err).Should(BeNil())
 
-			})
+			// })
 			Context("When there are machine resources available in control cluster", func() {
 				var initialNodes int16
 				It("should not lead to errors", func() {
@@ -218,7 +230,7 @@ var _ = Describe("Integration test", func() {
 				initialNodes = targetKubeCluster.NumberOfNodes()
 
 				// apply machine resource yaml file
-				Expect(controlKubeCluster.ApplyYamlFile("../../../kubernetes/machine-deployment.yaml")).To(BeNil())
+				Expect(controlKubeCluster.ApplyYamlFile("../../../kubernetes/machine-deployment.yaml", controlClusterNamespace)).To(BeNil())
 			})
 			It("should lead to 3 more nodes in target cluster", func() {
 				log.Println("Wait until new nodes are added. Number of nodes should be ", initialNodes+3)
@@ -359,6 +371,10 @@ var _ = Describe("Integration test", func() {
 			controlKubeCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Delete("test-machine", &metav1.DeleteOptions{})
 		}
 		//<-time.After(3 * time.Second)
+		//delete tempMachineClass
+		controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Delete(testMachineClassResources[0], &metav1.DeleteOptions{})
+		controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Delete(testMachineClassResources[1], &metav1.DeleteOptions{})
+
 		if !controlKubeCluster.IsSeed(targetKubeCluster) {
 			log.Println("Initiating gorouting cancel via context done")
 
@@ -374,11 +390,8 @@ var _ = Describe("Integration test", func() {
 				_, updateErr := controlKubeCluster.Clientset.AppsV1().Deployments(mcmDeploymentOrigObj.Namespace).Update(&mcmDeploymentOrigObj)
 				return updateErr
 			})
-
-			//delete tempMachineClass
-			controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Delete(testMachineClassResources[0], &metav1.DeleteOptions{})
-			controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Delete(testMachineClassResources[1], &metav1.DeleteOptions{})
 		}
+		scaleMcmDeployment(1)
 	})
 
 })
@@ -440,6 +453,20 @@ func prepareClusters() error {
 	return nil
 }
 
+func cloneMcmRepo() error {
+	/* clones mcm repo locally.
+	This is required if there is no mcm container image tag supplied or
+	the clusters are not seed (control) and shoot (target) clusters
+	*/
+	// src := "https://github.com/gardener/machine-controller-manager.git"
+	// helpers.CheckDst(mcmRepoPath)
+	// err := helpers.CloningRepo(mcmRepoPath, src)
+	// if err != nil {
+	// 	return err
+	// }
+	return nil
+}
+
 func applyCrds() error {
 	/* TO-DO: applyCrds will
 	- create the custom resources in the controlKubeConfig
@@ -447,14 +474,14 @@ func applyCrds() error {
 	- resources to be applied are machineclass, machines, machinesets and machinedeployment
 	*/
 
-	dst := mcmRepoPath
-	src := "https://github.com/gardener/machine-controller-manager.git"
-	applyCrdsDirectory := fmt.Sprintf("%s/kubernetes/crds", dst)
+	err := cloneMcmRepo()
+	if err != nil {
+		return err
+	}
 
-	helpers.CheckDst(dst)
-	helpers.CloningRepo(dst, src)
+	applyCrdsDirectory := fmt.Sprintf("%s/kubernetes/crds", mcmRepoPath)
 
-	err := applyFiles(applyCrdsDirectory)
+	err = applyFiles(applyCrdsDirectory)
 	if err != nil {
 		return err
 	}
@@ -510,16 +537,42 @@ func initMcmDeployment() error {
 		}
 		mcmDeploymentOrigObj = *result
 		for i := range result.Spec.Template.Spec.Containers {
-			if result.Spec.Template.Spec.Containers[i].Name == "machine-controller-manager" {
-				if len(mcmContainerImageTag) != 0 {
-					result.Spec.Template.Spec.Containers[i].Image = "eu.gcr.io/gardener-project/gardener/machine-controller-manager:" + mcmContainerImageTag
-				}
-			} else if result.Spec.Template.Spec.Containers[i].Name == "machine-controller" {
+			isProviderSpecific, _ := regexp.Match("machine-controller-manager-provider-", []byte(result.Spec.Template.Spec.Containers[i].Name))
+			if isProviderSpecific {
 				if len(mcContainerImageTag) != 0 {
 					result.Spec.Template.Spec.Containers[i].Image = "eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-aws:" + mcContainerImageTag
 				}
+			} else {
+				if len(mcmContainerImageTag) != 0 {
+					result.Spec.Template.Spec.Containers[i].Image = "eu.gcr.io/gardener-project/gardener/machine-controller-manager:" + mcmContainerImageTag
+				}
 			}
 		}
+		_, updateErr := controlKubeCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Update(result)
+		return updateErr
+	})
+	if retryErr != nil {
+		return retryErr
+	} else {
+		return nil
+	}
+}
+
+func scaleMcmDeployment(replicas int32) error {
+	/*
+		 - if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
+			 update machinecontrollermanager deployment in the control-cluster with specified image
+		 -
+	*/
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		result, getErr := controlKubeCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+		if getErr != nil {
+			panic(fmt.Errorf("Failed to get latest version of Deployment: %v", getErr))
+		}
+		mcmDeploymentOrigObj = *result
+		*result.Spec.Replicas = replicas
 		_, updateErr := controlKubeCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Update(result)
 		return updateErr
 	})
@@ -599,12 +652,12 @@ func createDummyMachineClass() error {
 
 		retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			// read machineClass patch yaml file ("../../../kubernetes/machine-class-patch.yaml" ) and update machine class(machineClass)
-			data, err := os.ReadFile("../../../kubernetes/machine-class-patch.yaml")
+			data, err := os.ReadFile("../../../kubernetes/machine-class-patch.json")
 			if err != nil {
 				// Error reading file. So skipping it
 				return nil
 			}
-			_, patchErr := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Patch(newMachineClass.Name, types.JSONPatchType, data)
+			_, patchErr := controlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Patch(newMachineClass.Name, types.MergePatchType, data)
 			return patchErr
 		})
 		if retryErr != nil {
@@ -639,7 +692,7 @@ func applyFiles(filePath string) error {
 		case mode.IsRegular():
 			// do file stuff
 			log.Printf("\n%s is a file. Therefore applying yaml ...", file)
-			err := controlKubeCluster.ApplyYamlFile(file)
+			err := controlKubeCluster.ApplyYamlFile(file, controlClusterNamespace)
 			if err != nil {
 				if strings.Contains(err.Error(), "already exists") {
 					log.Printf("\n%s already exists, so skipping ...\n", file)

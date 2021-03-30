@@ -21,8 +21,8 @@ PROJECT_NAME        := gardener
 CONTROL_NAMESPACE  := default
 CONTROL_KUBECONFIG := /Users/i348967/.kube/config-tonia-control
 TARGET_KUBECONFIG  := /Users/i348967/.kube/config-tonia-aws
-MCM_IMAGE_TAG		:=""
-MC_IMAGE_TAG		:=""
+MCM_IMAGE_TAG		:=
+MC_IMAGE_TAG		:=
 # CLOUD_PROVIDER_SECRET := /Users/i348967/local-storage/src/github.com/toniajuliejackson/machine-controller-manager-provider-aws/dev/cp_secret_new.yaml
 # CONTROL_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-aws-seed-local06022021.yaml
 # TARGET_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-ash-shoot-06022021.yaml
@@ -90,11 +90,10 @@ test-unit:
 	.ci/test
 
 .PHONY: test-integration
-test-integration: export cloudProviderSecret=$(CLOUD_PROVIDER_SECRET)
 test-integration: export controlKubeconfig=$(CONTROL_KUBECONFIG)
 test-integration: export targetKubeconfig=$(TARGET_KUBECONFIG)
 test-integration: export mcContainerImage=$(MCM_IMAGE_TAG)
-test-integration: export mcmContainerImageTag=$(MC_IMAGE_TAG)
+test-integration: export mcmContainerImage=$(MC_IMAGE_TAG)
 test-integration: 
 	.ci/integration_test
 

@@ -17,8 +17,7 @@ set -e
 # For the test step concourse will set the following environment variables:
 # SOURCE_PATH - path to component repository root directory.
 
-
-cd ../test/integration/controller
+cd test/integration/controller
 if ! hash ginkgo; then
     # Install Ginkgo (test framework) to be able to execute the tests.
     echo "Fetching Ginkgo frawework"

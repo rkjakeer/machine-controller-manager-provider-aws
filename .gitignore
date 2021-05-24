@@ -6,6 +6,4 @@ cmi-plugin
 bin/
 .idea
 dev/
-.test
-logs/
 .vscode

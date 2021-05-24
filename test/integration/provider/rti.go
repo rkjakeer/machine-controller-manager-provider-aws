@@ -15,7 +15,7 @@ import (
 // 	ClusterName      string
 // }
 
-type ResourcesTracker struct {
+type ResourcesTrackerImpl struct {
 	InitialVolumes   []string
 	InitialInstances []string
 	MachineClass     *v1alpha1.MachineClass
@@ -23,12 +23,12 @@ type ResourcesTracker struct {
 	ClusterName      string
 }
 
-func NewResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) (r *ResourcesTracker, e error) {
+func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) (e error) {
 
 	clusterTag := "tag:kubernetes.io/cluster/" + clusterName
 	clusterTagValue := "1"
 
-	r = &ResourcesTracker{
+	r = &ResourcesTrackerImpl{
 		MachineClass: machineClass,
 		Secret:       secret,
 		ClusterName:  clusterName,
@@ -40,17 +40,17 @@ func NewResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret,
 		volumes, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secret)
 		if err == nil {
 			r.InitialVolumes = volumes
-			return r, nil
+			return nil
 		} else {
-			return r, err
+			return err
 		}
 	} else {
-		return r, err
+		return err
 	}
 }
 
 // CheckForOrphanedResources will search the cloud provider for orphaned resources that are left behind after the test cases
-func (r *ResourcesTracker) CheckForResources() ([]string, []string, error) {
+func (r ResourcesTrackerImpl) ProbeResources() ([]string, []string, error) {
 	// Check for VM instances with matching tags/labels
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
@@ -108,8 +108,8 @@ func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecutio
 }
 
 // DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
-func (r *ResourcesTracker) IsOrphanedResourcesAvailable() bool {
-	afterTestExecutionInstances, afterTestExecutionAvailVols, err := r.CheckForResources()
+func (r ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
+	afterTestExecutionInstances, afterTestExecutionAvailVols, err := r.ProbeResources()
 	//Check there is no error occured
 	if err == nil {
 		orphanedResourceInstances := DifferenceOrphanedResources(r.InitialInstances, afterTestExecutionInstances)

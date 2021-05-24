@@ -17,7 +17,7 @@ type Cluster struct {
 	Clientset           *kubernetes.Clientset
 	apiextensionsClient *apiextensionsclientset.Clientset
 	McmClient           *mcmClientset.Clientset
-	kubeConfigFilePath  string
+	KubeConfigFilePath  string
 }
 
 // FillClientSets checks whether the cluster is accessible and returns an error if not
@@ -46,7 +46,7 @@ func NewCluster(kubeConfigPath string) (c *Cluster, e error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err == nil {
 		c = &Cluster{
-			kubeConfigFilePath: kubeConfigPath,
+			KubeConfigFilePath: kubeConfigPath,
 			restConfig:         config,
 		}
 	} else {
@@ -88,7 +88,7 @@ func (c *Cluster) ClusterName() (string, error) {
 	var clusterName string
 	//kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&clientcmd.ClientConfigLoadingRules{ExplicitPath: c.kubeConfigFilePath},
 	//	&clientcmd.ConfigOverrides{})
-	config, err := clientcmd.LoadFromFile(c.kubeConfigFilePath)
+	config, err := clientcmd.LoadFromFile(c.KubeConfigFilePath)
 	if err != nil {
 		return clusterName, err
 	}

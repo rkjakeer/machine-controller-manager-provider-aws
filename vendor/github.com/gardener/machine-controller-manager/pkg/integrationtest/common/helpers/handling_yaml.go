@@ -43,7 +43,10 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 		}
 
 		isExist, err := regexp.Match("CustomResourceDefinition", []byte(f))
-		if isExist == true {
+		if err != nil {
+			panic(err)
+		}
+		if isExist {
 			decode := apiextensionsscheme.Codecs.UniversalDeserializer().Decode
 			obj, groupVersionKind, err := decode([]byte(f), nil, nil)
 			if err != nil {
@@ -56,7 +59,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 				retKind = append(retKind, groupVersionKind)
 				retObj = append(retObj, obj)
 			}
-		} else if isExist == false {
+		} else {
 			decode := mcmscheme.Codecs.UniversalDeserializer().Decode
 			obj, groupVersionKind, err := decode([]byte(f), nil, nil)
 			if err != nil {
@@ -69,10 +72,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 				retKind = append(retKind, groupVersionKind)
 				retObj = append(retObj, obj)
 			}
-		} else {
-			panic(err)
 		}
-
 	}
 	return retObj, retKind, err
 }

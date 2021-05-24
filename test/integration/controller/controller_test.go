@@ -31,76 +31,18 @@
 package controller_test
 
 import (
-	"log"
-	"os"
-
 	"github.com/gardener/machine-controller-manager-provider-aws/test/integration/provider"
 	"github.com/gardener/machine-controller-manager/pkg/integrationtest/common"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	controlKubeConfigPath    = os.Getenv("controlKubeconfig")
-	targetKubeConfigPath     = os.Getenv("targetKubeconfig")
-	providerResourcesTracker *provider.ResourcesTracker
-	mcmRepoPath              = "../../../dev/mcm"
-	logPath                  = "../../../dev/"
-	// mc_logFile             = filepath.Join("../../../dev/", "integration-test-mc.log")
-	// mcm_logFile            = ioutil.TempFile()
-	mcContainerImageTag       = os.Getenv("mcContainerImage")
-	mcmContainerImageTag      = os.Getenv("mcmContainerImage")
-	controlClusterNamespace   = os.Getenv("controlClusterNamespace")
-	testMachineClassResources = []string{"test-mc", "test-mc-dummy"}
-)
+var commons = common.NewIntegrationTestFramework(&provider.ResourcesTrackerImpl{})
 
-var commons = common.NewContollerTest(controlKubeConfigPath,
-	targetKubeConfigPath,
-	mcmRepoPath,
-	logPath,
-	mcContainerImageTag,
-	mcmContainerImageTag,
-	controlClusterNamespace)
+var _ = BeforeSuite(commons.SetupBeforeSuite)
+
+var _ = AfterSuite(commons.Cleanup)
 
 var _ = Describe("Integration test", func() {
-	BeforeSuite(func() {
-		commons.SetupBeforeSuite()
-		// initialize orphan resource tracker
-		ControlKubeCluster := commons.ControlKubeCluster
-		machineClass, err := ControlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(controlClusterNamespace).Get(testMachineClassResources[0], metav1.GetOptions{})
-		if err == nil {
-			secret, err := ControlKubeCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
-			if err == nil {
-				clusterName, err := ControlKubeCluster.ClusterName()
-				log.Println("control cluster nmae is :", clusterName)
-				Expect(err).NotTo(HaveOccurred())
-				providerResourcesTracker, err = provider.NewResourcesTracker(machineClass, secret, clusterName)
-				//Check there is no error occured
-				Expect(err).NotTo(HaveOccurred())
-			}
-			Expect(err).NotTo(HaveOccurred())
-		}
-		Expect(err).NotTo(HaveOccurred())
-		log.Println("Orphan resource tracker initialized")
-	})
-	BeforeEach(func() {
-		commons.BeforeEachCheck()
-	})
-
+	commons.BeforeEachCheck()
 	commons.ControllerTests()
-	// ---------------------------------------------------------------------------------------
-	// Testcase #03 | Orphaned Resources
-	Describe("Check for orphaned resources", func() {
-		Context("In target cluster", func() {
-			Context("Check if there are any resources matching the tag exists", func() {
-				It("Should list any orphaned resources if available", func() {
-					// if available should delete orphaned resources in cloud provider
-					Expect(providerResourcesTracker.IsOrphanedResourcesAvailable()).To(BeFalse())
-				})
-			})
-		})
-	})
-
-	commons.Cleanup()
 })

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -20,6 +21,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -42,8 +44,8 @@ type IntegrationTestFramework struct {
 func NewIntegrationTestFramework(resourcesTracker helpers.ResourcesTrackerInterface) (c *IntegrationTestFramework) {
 	c = &IntegrationTestFramework{
 		mcmRepoPath:               "../../../dev/mcm",
-		mcm_logFile:               filepath.Join(os.TempDir(), "integration-test-mcm.log"),
-		mc_logFile:                filepath.Join(os.TempDir(), "integration-test-mc.log"),
+		mcm_logFile:               filepath.Join(os.TempDir(), "mcm_process.log"),
+		mc_logFile:                filepath.Join(os.TempDir(), "mc_process.log"),
 		controlClusterNamespace:   os.Getenv("controlClusterNamespace"),
 		testMachineClassResources: []string{"test-mc", "test-mc-dummy"},
 		numberOfBgProcesses:       0,
@@ -60,8 +62,8 @@ func (c *IntegrationTestFramework) prepareClusters() error {
 	controlKubeConfigPath := os.Getenv("controlKubeconfig")
 	targetKubeConfigPath := os.Getenv("targetKubeconfig")
 	c.ctx, c.cancelFunc = context.WithCancel(context.Background())
-	log.Printf("Control path is %s\n", controlKubeConfigPath)
-	log.Printf("Target path is %s\n", targetKubeConfigPath)
+	log.Printf("Control cluster kube-config - %s\n", controlKubeConfigPath)
+	log.Printf("Target cluster kube-config  - %s\n", targetKubeConfigPath)
 	if controlKubeConfigPath != "" {
 		controlKubeConfigPath, _ = filepath.Abs(controlKubeConfigPath)
 		// if control cluster config is available but not the target, then set control and target clusters as same
@@ -125,21 +127,21 @@ func (c *IntegrationTestFramework) cloneMcmRepo() error {
 	return nil
 }
 
-func (c *IntegrationTestFramework) applyCrds() error {
+func (c *IntegrationTestFramework) createCrds() error {
 	/* TO-DO: applyCrds will
 	- create the custom resources in the controlKubeConfig
 	- yaml files are available in kubernetes/crds directory of machine-controller-manager repo
 	- resources to be applied are machineclass, machines, machinesets and machinedeployment
 	*/
 
-	err := c.cloneMcmRepo()
-	if err != nil {
-		return err
-	}
+	// err := c.cloneMcmRepo()
+	// if err != nil {
+	// 	return err
+	// }
 
 	applyCrdsDirectory := fmt.Sprintf("%s/kubernetes/crds", c.mcmRepoPath)
 
-	err = c.applyFiles(applyCrdsDirectory)
+	err := c.applyFiles(applyCrdsDirectory)
 	if err != nil {
 		return err
 	}
@@ -180,14 +182,21 @@ func (c *IntegrationTestFramework) startMachineController(ctx context.Context) e
 	return nil
 }
 
-func (c *IntegrationTestFramework) initMcmDeployment(mcContainerImageTag string, mcmContainerImageTag string) error {
+func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag string, mcmContainerImageTag string, byCreating bool) error {
 	/*
 		 - if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
 			 update machinecontrollermanager deployment in the control-cluster with specified image
 		 -
 	*/
-
-	regObj, _ := regexp.Compile("machine-controller-manager-provider-")
+	if byCreating {
+		// Create machine-deployment using the yaml file
+		err := c.applyFiles("../../../kubernetes/machine-deployment.yaml")
+		if err != nil {
+			return err
+		}
+		// once created, the machine-deployment resource container image tags will be updated by continuing here
+	}
+	providerSpecificRegexp, _ := regexp.Compile("machine-controller-manager-provider-")
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
@@ -197,7 +206,7 @@ func (c *IntegrationTestFramework) initMcmDeployment(mcContainerImageTag string,
 		}
 		c.mcmDeploymentOrigObj = *result
 		for i := range result.Spec.Template.Spec.Containers {
-			isProviderSpecific := regObj.Match([]byte(result.Spec.Template.Spec.Containers[i].Name))
+			isProviderSpecific := providerSpecificRegexp.Match([]byte(result.Spec.Template.Spec.Containers[i].Name))
 			if isProviderSpecific {
 				if len(mcContainerImageTag) != 0 {
 					result.Spec.Template.Spec.Containers[i].Image = "eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-aws:" + mcContainerImageTag
@@ -244,7 +253,7 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 	}
 }
 
-func (c *IntegrationTestFramework) applyMachineClass() error {
+func (c *IntegrationTestFramework) createMachineClass() error {
 	/*
 		 - if isControlClusterIsShootsSeed is true, then use machineclass from cluster
 			 probe for machine-class in the identified namespace and then creae a copy of this machine-class with additional delta available in machineclass-delta.yaml ( eg. tag (providerSpec.tags)  \"mcm-integration-test: "true"\" )
@@ -339,35 +348,29 @@ func (c *IntegrationTestFramework) applyFiles(filePath string) error {
 	}
 
 	for _, file := range files {
-		log.Println(file)
+		// log.Println(file)
 		fi, err := os.Stat(file)
 		if err != nil {
-			log.Println("\nError file does not exist!")
+			log.Println("Error: file does not exist!")
 			return err
 		}
 
 		switch mode := fi.Mode(); {
 		case mode.IsDir():
 			// do directory stuff
-			log.Printf("\n%s is a directory. Therefore nothing will happen!\n", file)
+			log.Printf("%s is a directory.\n", file)
 		case mode.IsRegular():
 			// do file stuff
-			log.Printf("\n%s is a file. Therefore applying yaml ...", file)
 			err := c.ControlKubeCluster.ApplyYamlFile(file, c.controlClusterNamespace)
 			if err != nil {
-				if strings.Contains(err.Error(), "already exists") {
-					log.Printf("\n%s already exists, so skipping ...\n", file)
-				} else {
-					log.Printf("\nFailed to create machine class %s, in the cluster.\n", file)
-					return err
+				//Ignore error if it says the crd already exists
+				if !strings.Contains(err.Error(), "already exists") {
+					log.Printf("Failed to apply yaml file %s", file)
+					//return err
 				}
-
 			}
+			log.Printf("file %s has been successfully applied to cluster", file)
 		}
-	}
-	err = c.ControlKubeCluster.CheckEstablished()
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -378,7 +381,9 @@ func (c *IntegrationTestFramework) execCommandAsRoutine(ctx context.Context, cmd
 
 	command := exec.CommandContext(ctx, args[0], args[1:]...)
 	outputFile, err := os.Create(logFile)
-
+	command.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
 	if err != nil {
 		log.Printf("Error occured while creating log file %s. Error is %s", logFile, err)
 	}
@@ -386,25 +391,17 @@ func (c *IntegrationTestFramework) execCommandAsRoutine(ctx context.Context, cmd
 	defer func() {
 		c.numberOfBgProcesses = c.numberOfBgProcesses - 1
 		outputFile.Close()
-
-		err := command.Process.Kill()
-		log.Printf("process has been terminated. Check %s\n%s", logFile, err)
-		//command.Process.Signal(os.Interrupt)
+		syscall.Kill(-command.Process.Pid, syscall.SIGINT)
+		command.Process.Kill()
+		log.Printf("goroutine has been terminated. For more details check %s\n", logFile)
 		c.wg.Done()
 	}()
 
 	command.Dir = dir
 	command.Stdout = outputFile
 	command.Stderr = outputFile
-	log.Println("Goroutine started")
-
-	err = command.Run()
-
-	if err != nil {
-		log.Println("make command terminated")
-	}
-	log.Println("For more details check:", logFile)
-
+	log.Println("command started as a goroutine")
+	command.Run()
 }
 
 func (c *IntegrationTestFramework) SetupBeforeSuite() {
@@ -422,17 +419,31 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	By("Checking for the clusters if provided are available")
 	Expect(c.prepareClusters()).To(BeNil())
 
+	// preparing resources
 	if !c.ControlKubeCluster.IsSeed(c.TargetKubeCluster) {
+
+		By("Cloning Machine-Controller-Manager github repo")
+		Expect(c.cloneMcmRepo()).To(BeNil())
+
 		By("Fetching kubernetes/crds and applying them into control cluster")
-		Expect(c.applyCrds()).To(BeNil())
+		Expect(c.createCrds()).To(BeNil())
 
 		By("Applying MachineClass")
-		Expect(c.applyMachineClass()).To(BeNil())
+		Expect(c.createMachineClass()).To(BeNil())
 	} else {
+		// If no tags specified then - applyCrds from the mcm repo by cloning
+		if !(len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0) {
+			By("Cloning Machine-Controller-Manager github repo")
+			Expect(c.cloneMcmRepo()).To(BeNil())
+
+			By("Fetching kubernetes/crds and applying them into control cluster")
+			Expect(c.createCrds()).To(BeNil())
+		}
 		By("Creating dup MachineClass with delta yaml")
 		Expect(c.createDummyMachineClass()).To(BeNil())
 	}
 
+	// starting controllers
 	if len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0 {
 		log.Println("length is ", len(mcContainerImageTag))
 		/* - if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
@@ -440,14 +451,18 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		- crds already exist in the cluster.
 		TO-DO: try to look for crds in local kubernetes directory and apply them. this validates changes in crd structures (if any)
 		*/
-		By("Starting MCM Deployemnt")
-		Expect(c.initMcmDeployment(mcContainerImageTag, mcmContainerImageTag)).To(BeNil())
+		if c.ControlKubeCluster.IsSeed(c.TargetKubeCluster) {
+			By("Updating MCM Deployemnt")
+			Expect(c.prepareMcmDeployment(mcContainerImageTag, mcmContainerImageTag, false)).To(BeNil())
+		} else {
+			By("Creating MCM Deployemnt")
+			Expect(c.prepareMcmDeployment(mcContainerImageTag, mcmContainerImageTag, true)).To(BeNil())
+		}
+
 	} else {
-		/* 	- applyCrds from the mcm repo by cloning it and then
-		- as mcmContainerImage is empty, run mc and mcm locally
+		/*
+			- as mcmContainerImage is empty, run mc and mcm locally
 		*/
-		By("Cloning Machine-Controller-Manager github repo")
-		Expect(c.cloneMcmRepo()).To(BeNil())
 
 		if c.ControlKubeCluster.IsSeed(c.TargetKubeCluster) {
 			By("Scaledown existing machine controllers")
@@ -641,7 +656,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
-		Context("Updation to v2 machine-class andp replicas=6", func() {
+		Context("Updation to v2 machine-class and replicas=6", func() {
 			// update machine type -> machineDeployment.spec.template.spec.class.name = "test-mc-dummy"
 			// scale up replicas by 4
 			// To-Do: Add check for rolling update completion (updatedReplicas check)
@@ -656,27 +671,26 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				//Check there is no error occured
 				Expect(retryErr).NotTo(HaveOccurred())
-				Eventually(c.ControlKubeCluster.GetUpdatedReplicasCount("test-machine-deployment", c.controlClusterNamespace), 300, 5).Should(BeNumerically("==", 6))
-				Eventually(c.TargetKubeCluster.NumberOfReadyNodes, 300, 5).Should(BeNumerically("==", initialNodes+6))
+				Eventually(c.ControlKubeCluster.GetUpdatedReplicasCount("test-machine-deployment", c.controlClusterNamespace), 420, 5).Should(BeNumerically("==", 6))
+				Eventually(c.TargetKubeCluster.NumberOfReadyNodes, 420, 5).Should(BeNumerically("==", initialNodes+6))
 			})
 		})
 		Context("Deletion", func() {
-			var initialNodes int16
+			var initialNodes, deploymentReplica int32
 			Context("When there are machine deployment(s) available in control cluster", func() {
 				It("should not lead to errors", func() {
-					machinesList, _ := c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).List(metav1.ListOptions{})
-					if len(machinesList.Items) != 0 {
+					initialNodes = int32(c.TargetKubeCluster.NumberOfNodes())
+					machineDeployment, err := c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
+					if err == nil {
 						// Keep count of nodes available
-						initialNodes = c.TargetKubeCluster.NumberOfNodes()
-
+						deploymentReplica = machineDeployment.Spec.Replicas
 						//delete machine resource
 						Expect(c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Delete("test-machine-deployment", &metav1.DeleteOptions{})).Should(BeNil(), "No Errors while deleting machine deployment")
 					}
 				})
 				It("should list existing nodes-6 in target cluster", func() {
-					// check there are n-1 nodes
 					if initialNodes != 0 {
-						Eventually(c.TargetKubeCluster.NumberOfNodes, 300, 5).Should(BeNumerically("==", initialNodes-6))
+						Eventually(c.TargetKubeCluster.NumberOfNodes, 300, 5).Should(BeNumerically("==", initialNodes-deploymentReplica))
 					}
 				})
 			})
@@ -698,15 +712,38 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 func (c *IntegrationTestFramework) Cleanup() {
 	if c.ControlKubeCluster.McmClient != nil {
-
 		_, err := c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
-		if err != nil {
-			c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Delete("test-machine-deployment", &metav1.DeleteOptions{})
+		if err == nil {
+			log.Println("deleting test-machine-deployment")
+			watchMachinesDepl, _ := c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Watch(metav1.ListOptions{}) //ResourceVersion: machineDeploymentObj.ResourceVersion
+			for event := range watchMachinesDepl.ResultChan() {
+				c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineDeployments(c.controlClusterNamespace).Delete("test-machine-deployment", &metav1.DeleteOptions{})
+				if event.Type == watch.Deleted {
+					watchMachinesDepl.Stop()
+					log.Println("machinedeployment deleted")
+				}
+			}
+		} else {
+			log.Println(err.Error())
 		}
 
-		c.ControlKubeCluster.McmClient.MachineV1alpha1().Machines(c.controlClusterNamespace).Delete("test-machine", &metav1.DeleteOptions{})
+		_, err = c.ControlKubeCluster.McmClient.MachineV1alpha1().Machines(c.controlClusterNamespace).Get("test-machine", metav1.GetOptions{})
+		if err == nil {
+			log.Println("deleting test-machine")
+			watchMachines, _ := c.ControlKubeCluster.McmClient.MachineV1alpha1().Machines(c.controlClusterNamespace).Watch(metav1.ListOptions{}) //ResourceVersion: machineObj.ResourceVersion
+			for event := range watchMachines.ResultChan() {
+				c.ControlKubeCluster.McmClient.MachineV1alpha1().Machines(c.controlClusterNamespace).Delete("test-machine", &metav1.DeleteOptions{})
+				if event.Type == watch.Deleted {
+					watchMachines.Stop()
+					log.Println("machine deleted")
+				}
+			}
+		} else {
+			log.Println(err.Error())
+		}
 		//<-time.After(3 * time.Second)
 		//delete tempMachineClass
+
 		c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(c.controlClusterNamespace).Delete(c.testMachineClassResources[0], &metav1.DeleteOptions{})
 		c.ControlKubeCluster.McmClient.MachineV1alpha1().MachineClasses(c.controlClusterNamespace).Delete(c.testMachineClassResources[1], &metav1.DeleteOptions{})
 	}

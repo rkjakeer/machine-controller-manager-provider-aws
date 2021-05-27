@@ -18,7 +18,6 @@ IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-ma
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
-CONTROL_NAMESPACE   := default
 CONTROL_KUBECONFIG  := /Users/i348967/.kube/config-tonia-control
 TARGET_KUBECONFIG   := /Users/i348967/.kube/config-tonia-aws
 MCM_IMAGE_TAG		:=

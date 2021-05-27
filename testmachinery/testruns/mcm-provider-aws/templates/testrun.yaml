@@ -67,6 +67,7 @@ spec:
     dependsOn: [ generate-provider ]
     definition:
       name: create-shoot
+      untrusted: false
       config:
       - name: PROVIDER_TYPE
         type: env
@@ -99,6 +100,7 @@ spec:
     definition:
       label: playground
       continueOnError: true
+      untrusted: false
   - name: delete
     dependsOn: [ tests ]
     definition:

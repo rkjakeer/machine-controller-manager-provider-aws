@@ -23,17 +23,14 @@ type ResourcesTrackerImpl struct {
 	ClusterName      string
 }
 
-func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) (e error) {
+func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) error {
 
 	clusterTag := "tag:kubernetes.io/cluster/" + clusterName
 	clusterTagValue := "1"
 
-	r = &ResourcesTrackerImpl{
-		MachineClass: machineClass,
-		Secret:       secret,
-		ClusterName:  clusterName,
-	}
-
+	r.MachineClass = machineClass
+	r.Secret = secret
+	r.ClusterName = clusterName
 	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secret)
 	if err == nil {
 		r.InitialInstances = instances
@@ -50,7 +47,7 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 }
 
 // CheckForOrphanedResources will search the cloud provider for orphaned resources that are left behind after the test cases
-func (r ResourcesTrackerImpl) ProbeResources() ([]string, []string, error) {
+func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, error) {
 	// Check for VM instances with matching tags/labels
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
@@ -108,7 +105,7 @@ func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecutio
 }
 
 // DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
-func (r ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
+func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 	afterTestExecutionInstances, afterTestExecutionAvailVols, err := r.ProbeResources()
 	//Check there is no error occured
 	if err == nil {

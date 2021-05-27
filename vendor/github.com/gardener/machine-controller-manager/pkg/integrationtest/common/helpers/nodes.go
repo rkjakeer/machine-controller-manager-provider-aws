@@ -14,8 +14,7 @@ func (c *Cluster) ProbeNodes() error {
 
 //getNodes tries to retrieve the list of node objects in the cluster.
 func (c *Cluster) getNodes() (*v1.NodeList, error) {
-	nodes, err := c.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
-	return nodes, err
+	return c.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 }
 
 //NumberOfReadyNodes tries to retrieve the list of node objects in the cluster.
@@ -26,9 +25,9 @@ func (c *Cluster) NumberOfReadyNodes() int16 {
 	}
 	count := int16(0)
 	for _, n := range nodes.Items {
-		for _, c := range n.Status.Conditions {
-			if c.Type == "Ready" && c.Status == "True" {
-				count++
+		for _, nodeCondition := range n.Status.Conditions {
+			if nodeCondition.Type == "Ready" && nodeCondition.Status == "True" {
+				count += 1
 			}
 		}
 	}

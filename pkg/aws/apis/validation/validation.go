@@ -49,14 +49,15 @@ func ValidateAWSProviderSpec(spec *awsapi.AWSProviderSpec, secret *corev1.Secret
 	if "" == spec.MachineType {
 		allErrs = append(allErrs, field.Required(fldPath.Child("machineType"), "MachineType is required"))
 	}
-	if "" == spec.IAM.Name {
-		allErrs = append(allErrs, field.Required(fldPath.Child("iam.name"), "IAM Name is required"))
+	if ("" == spec.IAM.Name && "" == spec.IAM.ARN) || ("" != spec.IAM.Name && "" != spec.IAM.ARN) {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("iam"), spec.IAM, "either IAM Name or ARN must be set"))
 	}
 	if "" == spec.KeyName {
 		allErrs = append(allErrs, field.Required(fldPath.Child("keyName"), "KeyName is required"))
 	}
 
 	allErrs = append(allErrs, validateBlockDevices(spec.BlockDevices, fldPath.Child("blockDevices"))...)
+	allErrs = append(allErrs, validateCapacityReservations(spec.CapacityReservationTarget, fldPath.Child("capacityReservation"))...)
 	allErrs = append(allErrs, validateNetworkInterfaces(spec.NetworkInterfaces, fldPath.Child("networkInterfaces"))...)
 	allErrs = append(allErrs, ValidateSecret(secret, field.NewPath("secretRef"))...)
 	allErrs = append(allErrs, validateSpecTags(spec.Tags, fldPath.Child("tags"))...)
@@ -138,6 +139,20 @@ func validateBlockDevices(blockDevices []awsapi.AWSBlockDeviceMappingSpec, fldPa
 	for device, number := range deviceNames {
 		if number > 1 {
 			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("Device name '%s' duplicated %d times, DeviceName must be unique", device, number)))
+		}
+	}
+
+	return allErrs
+}
+
+func validateCapacityReservations(capacityReservation *awsapi.AWSCapacityReservationTargetSpec, fldPath *field.Path) field.ErrorList {
+	var (
+		allErrs = field.ErrorList{}
+	)
+
+	if capacityReservation != nil {
+		if capacityReservation.CapacityReservationID != nil && capacityReservation.CapacityReservationResourceGroupArn != nil {
+			allErrs = append(allErrs, field.Required(fldPath, "capacityReservationResourceGroupArn or capacityReservationId are optional but only one should be used"))
 		}
 	}
 

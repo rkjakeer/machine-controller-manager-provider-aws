@@ -56,7 +56,7 @@ github.com/emirpasic/gods/utils
 github.com/evanphx/json-patch
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/gardener/machine-controller-manager v0.37.0 => /Users/i348967/local-storage/src/github.com/rkjakeer/machine-controller-manager
+# github.com/gardener/machine-controller-manager v0.39.0 => /Users/i348967/local-storage/src/github.com/rkjakeer/machine-controller-manager
 ## explicit
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1

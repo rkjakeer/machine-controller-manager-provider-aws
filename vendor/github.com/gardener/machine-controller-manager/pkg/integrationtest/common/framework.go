@@ -214,11 +214,7 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 		_, updateErr := c.ControlKubeCluster.Clientset.AppsV1().Deployments(c.controlClusterNamespace).Update(result)
 		return updateErr
 	})
-	if retryErr != nil {
-		return retryErr
-	} else {
-		return nil
-	}
+	return retryErr
 }
 
 func (c *IntegrationTestFramework) setupMachineClass() error {

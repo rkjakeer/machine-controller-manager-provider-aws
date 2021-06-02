@@ -5,5 +5,5 @@ cmi-plugin
 *coverprofile.out*
 bin/
 .idea
-dev/
-.vscode
+/dev
+.cache_ggshield

@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kubernetes
+    role: machine-controller-manager
+  name: machine-controller-manager
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes
+      role: machine-controller-manager
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: kubernetes
+        garden.sapcloud.io/role: controlplane
+        gardener.cloud/role: controlplane
+        maintenance.gardener.cloud/restart: "true"
+        networking.gardener.cloud/from-prometheus: allowed
+        networking.gardener.cloud/to-dns: allowed
+        networking.gardener.cloud/to-private-networks: allowed
+        networking.gardener.cloud/to-public-networks: allowed
+        networking.gardener.cloud/to-seed-apiserver: allowed
+        networking.gardener.cloud/to-shoot-apiserver: allowed
+        role: machine-controller-manager
+    spec:
+      containers:
+      - name: machine-controller-manager-provider-aws
+        command:
+        - ./machine-controller
+        - --control-kubeconfig=inClusterConfig
+        - --machine-creation-timeout=20m
+        - --machine-drain-timeout=2h
+        - --machine-health-timeout=10m
+        - --port=10259
+        - --target-kubeconfig=/var/lib/machine-controller-manager/kubeconfig
+        - --v=3
+        image: eu.gcr.io/sap-se-gcr-k8s-public/eu_gcr_io/gardener-project/gardener/machine-controller-manager-provider-aws@sha256:e10e48963a811f4fd29a8906ec1a61b474ea0d9c405f4c6ba585a2b90d9ecc15
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10259
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/machine-controller-manager
+          name: machine-controller-manager
+          readOnly: true
+      - name: machine-controller-manager
+        command:
+        - ./machine-controller-manager
+        - --control-kubeconfig=inClusterConfig
+        - --delete-migrated-machine-class=true
+        - --machine-safety-apiserver-statuscheck-timeout=30s
+        - --machine-safety-apiserver-statuscheck-period=1m
+        - --machine-safety-orphan-vms-period=30m
+        - --machine-safety-overshooting-period=1m
+        - --port=10258
+        - --safety-up=2
+        - --safety-down=1
+        - --target-kubeconfig=/var/lib/machine-controller-manager/kubeconfig
+        - --v=3
+        image: eu.gcr.io/sap-se-gcr-k8s-public/eu_gcr_io/gardener-project/gardener/machine-controller-manager@sha256:70265c6081ddcf7d5308c652c2b6a29bd4f3425dc598769d924f74965e6be578
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10258
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 10258
+          name: metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 350m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/machine-controller-manager
+          name: machine-controller-manager
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - name: machine-controller-manager
+        secret:
+          defaultMode: 420
+          secretName: machine-controller-manager

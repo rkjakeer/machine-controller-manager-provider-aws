@@ -2,57 +2,46 @@ package helpers
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/go-git/go-git/v5"
 )
 
-// CheckDst checks if specified destination folder exists
-func CheckDst(dst string) error {
-	/* TO-DO: This function verifies if the directory exists and
-	if it already exists, then it deletes the folder and its contents
+func CloneRepo(source string, destinationDir string) error {
+	/* clones mcm repo locally.
+	This is required if there is no mcm container image tag supplied or
+	the clusters are not seed (control) and shoot (target) clusters
 	*/
-	_, err := os.Stat(dst)
+	fi, err := os.Stat(destinationDir)
 	if err == nil {
-		fmt.Println("Folder and contents do exist, therefore deleting the folder and its contents ...")
-		// delete folder and contents
-		err := os.RemoveAll(dst)
-		if err != nil {
-			return err
+		if fi.IsDir() {
+			log.Printf("skipping as %s directory already exists. If cloning is necessary, delete directory and rerun test", destinationDir)
+			return nil
 		}
-	} else {
-		fmt.Println("Folder and contents do not exist")
 	}
-
-	return nil
-}
-
-// CloningRepo pulls down the specified git repo to the destination folder
-func CloningRepo(dst string, src string) error {
-	/* TO-DO: This function clones the specified repo to a destination folder
-	 */
 
 	fmt.Println("Cloning Repository ...")
 	// clone the given repository to the given directory
-	fmt.Printf("git clone %s %s --recursive", src, dst)
+	fmt.Printf("git clone %s %s --recursive", source, destinationDir)
 
-	r, err := git.PlainClone(dst, false, &git.CloneOptions{
-		URL:               src,
+	repo, err := git.PlainClone(destinationDir, false, &git.CloneOptions{
+		URL:               source,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	})
 	if err != nil {
-		fmt.Printf("\nFailed to clone repoistory to the destination folder; %s.\n", dst)
+		fmt.Printf("\nFailed to clone repoistory to the destination; %s.\n", destinationDir)
 		return err
 	}
 
 	// retrieving the branch being pointed by HEAD
-	ref, err := r.Head()
+	ref, err := repo.Head()
 	if err != nil {
 		return err
 	}
 
 	// retrieving the commit object
-	commit, err := r.CommitObject(ref.Hash())
+	commit, err := repo.CommitObject(ref.Hash())
 	if err != nil {
 		return err
 	}

@@ -20,9 +20,14 @@ PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
 CONTROL_KUBECONFIG  := /Users/i348967/.kube/config-tonia-control
 TARGET_KUBECONFIG   := /Users/i348967/.kube/config-tonia-aws
-MCM_IMAGE_TAG		:=
-MC_IMAGE_TAG		:=
+# MCM_IMAGE_TAG		:=
+# MC_IMAGE_TAG		:=
+MCM_IMAGE_TAG		:= v0.38.0
+MC_IMAGE_TAG		:= v0.6.0
 TEST_DIR 			:= /tmp
+
+LEADER_ELECT 	   := "true"
+
 # CLOUD_PROVIDER_SECRET := /Users/i348967/local-storage/src/github.com/toniajuliejackson/machine-controller-manager-provider-aws/dev/cp_secret_new.yaml
 # CONTROL_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-aws-seed-local06022021.yaml
 # TARGET_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-ash-shoot-06022021.yaml
@@ -58,6 +63,7 @@ start:
 			--machine-safety-apiserver-statuscheck-timeout=30s \
 			--machine-safety-apiserver-statuscheck-period=1m \
 			--machine-safety-orphan-vms-period=30m \
+			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 
 #########################################

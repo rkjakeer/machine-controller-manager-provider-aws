@@ -19,10 +19,7 @@ func (c *Cluster) getNodes() (*v1.NodeList, error) {
 
 //NumberOfReadyNodes tries to retrieve the list of node objects in the cluster.
 func (c *Cluster) NumberOfReadyNodes() int16 {
-	nodes, err := c.getNodes()
-	if err != nil {
-		panic("Get nodes failed")
-	}
+	nodes, _ := c.getNodes()
 	count := int16(0)
 	for _, n := range nodes.Items {
 		for _, nodeCondition := range n.Status.Conditions {
@@ -36,9 +33,6 @@ func (c *Cluster) NumberOfReadyNodes() int16 {
 
 //NumberOfNodes tries to retrieve the list of node objects in the cluster.
 func (c *Cluster) NumberOfNodes() int16 {
-	nodes, err := c.getNodes()
-	if err != nil {
-		panic("Get nodes failed")
-	}
+	nodes, _ := c.getNodes()
 	return int16(len(nodes.Items))
 }

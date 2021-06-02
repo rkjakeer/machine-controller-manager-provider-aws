@@ -7,6 +7,7 @@ import (
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	rbac "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -17,6 +18,7 @@ type Cluster struct {
 	Clientset           *kubernetes.Clientset
 	apiextensionsClient *apiextensionsclientset.Clientset
 	McmClient           *mcmClientset.Clientset
+	RbacClient          *rbac.RbacV1Client
 	KubeConfigFilePath  string
 }
 
@@ -36,6 +38,10 @@ func (c *Cluster) FillClientSets() error {
 		mcmClient, err := mcmClientset.NewForConfig(c.restConfig)
 		if err == nil {
 			c.McmClient = mcmClient
+		}
+		rbacClient, err := rbac.NewForConfig(c.restConfig)
+		if err == nil {
+			c.RbacClient = rbacClient
 		}
 	}
 	return err

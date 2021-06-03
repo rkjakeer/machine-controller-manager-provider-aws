@@ -23,7 +23,7 @@ TARGET_KUBECONFIG   := /Users/i348967/.kube/config-tonia-aws
 # MCM_IMAGE_TAG		:=
 # MC_IMAGE_TAG		:=
 MCM_IMAGE_TAG		:= v0.38.0
-MC_IMAGE_TAG		:= v0.6.0
+MC_IMAGE_TAG		:= v0.7.0
 TEST_DIR 			:= /tmp
 
 LEADER_ELECT 	   := "true"
@@ -98,8 +98,8 @@ test-unit:
 .PHONY: test-integration
 test-integration: export controlKubeconfig=$(CONTROL_KUBECONFIG)
 test-integration: export targetKubeconfig=$(TARGET_KUBECONFIG)
-test-integration: export mcContainerImage=$(MCM_IMAGE_TAG)
-test-integration: export mcmContainerImage=$(MC_IMAGE_TAG)
+test-integration: export mcContainerImage=$(MC_IMAGE_TAG)
+test-integration: export mcmContainerImage=$(MCM_IMAGE_TAG)
 test-integration: export controlClusterNamespace=$(CONTROL_NAMESPACE)
 test-integration: 
 	.ci/integration_test

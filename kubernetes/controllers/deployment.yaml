@@ -43,7 +43,7 @@ spec:
         - --port=10259
         - --target-kubeconfig=/var/lib/machine-controller-manager/kubeconfig
         - --v=3
-        image: eu.gcr.io/sap-se-gcr-k8s-public/eu_gcr_io/gardener-project/gardener/machine-controller-manager-provider-aws@sha256:e10e48963a811f4fd29a8906ec1a61b474ea0d9c405f4c6ba585a2b90d9ecc15
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-aws:v0.4.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -76,7 +76,7 @@ spec:
         - --safety-down=1
         - --target-kubeconfig=/var/lib/machine-controller-manager/kubeconfig
         - --v=3
-        image: eu.gcr.io/sap-se-gcr-k8s-public/eu_gcr_io/gardener-project/gardener/machine-controller-manager@sha256:70265c6081ddcf7d5308c652c2b6a29bd4f3425dc598769d924f74965e6be578
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.34.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

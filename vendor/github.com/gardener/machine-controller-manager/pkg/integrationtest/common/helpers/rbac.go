@@ -27,6 +27,8 @@ func (c *Cluster) ControlClusterRolesAndRoleBindingSetup() {
 					"machines",
 					"machinesets",
 					"machines/status",
+					"machinesets/status",
+					"machinedeployments/status",
 				},
 				Verbs: []string{
 					"create",

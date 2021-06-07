@@ -42,21 +42,7 @@ func newSession(machineClass *v1alpha1.MachineClass, secret *v1.Secret) *session
 		sPI          spi.PluginSPIImpl
 	)
 
-	driverprovider := providerDriver.NewAWSDriver(&sPI)
-	machineList, err := driverprovider.ListMachines(context.TODO(), &driver.ListMachinesRequest{
-		MachineClass: machineClass,
-		Secret:       secret,
-	})
-	if err != nil {
-		//log.Printf("\nError occured while listing machines %s", err)
-	} else if len(machineList.MachineList) != 0 {
-		fmt.Printf("\nAvailable Machines: ")
-		for _, machine := range machineList.MachineList {
-			fmt.Printf("%s", machine)
-		}
-	}
-
-	err = json.Unmarshal([]byte(machineClass.ProviderSpec.Raw), &providerSpec)
+	err := json.Unmarshal([]byte(machineClass.ProviderSpec.Raw), &providerSpec)
 	if err != nil {
 		providerSpec = nil
 		log.Printf("Error occured while performing unmarshal %s", err.Error())
@@ -66,6 +52,25 @@ func newSession(machineClass *v1alpha1.MachineClass, secret *v1.Secret) *session
 		log.Printf("Error occured while creating new session %s", err)
 	}
 	return sess
+}
+
+func DescribeMachines(machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([]string, error) {
+	var machines []string
+	var sPI spi.PluginSPIImpl
+	driverprovider := providerDriver.NewAWSDriver(&sPI)
+	machineList, err := driverprovider.ListMachines(context.TODO(), &driver.ListMachinesRequest{
+		MachineClass: machineClass,
+		Secret:       secret,
+	})
+	if err != nil {
+		return nil, err
+	} else if len(machineList.MachineList) != 0 {
+		fmt.Printf("\nAvailable Machines: ")
+		for _, machine := range machineList.MachineList {
+			machines = append(machines, machine)
+		}
+	}
+	return machines, nil
 }
 
 // DescribeInstancesWithTag describes the instance with the specified tag

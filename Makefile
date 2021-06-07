@@ -90,8 +90,8 @@ test-unit:
 	.ci/test
 
 .PHONY: test-integration
-test-integration: export controlKubeconfig=$(CONTROL_KUBECONFIG)
-test-integration: export targetKubeconfig=$(TARGET_KUBECONFIG)
+test-integration: export controlKubeconfig=$(PWD)/$(CONTROL_KUBECONFIG)
+test-integration: export targetKubeconfig=$(PWD)/$(TARGET_KUBECONFIG)
 test-integration: export mcContainerImage=$(MC_IMAGE_TAG)
 test-integration: export mcmContainerImage=$(MCM_IMAGE_TAG)
 test-integration: export controlClusterNamespace=$(CONTROL_NAMESPACE)

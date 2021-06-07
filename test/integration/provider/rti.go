@@ -18,6 +18,7 @@ import (
 type ResourcesTrackerImpl struct {
 	InitialVolumes   []string
 	InitialInstances []string
+	InitialMachines  []string
 	MachineClass     *v1alpha1.MachineClass
 	Secret           *v1.Secret
 	ClusterName      string
@@ -37,7 +38,8 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 		volumes, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secret)
 		if err == nil {
 			r.InitialVolumes = volumes
-			return nil
+			r.InitialMachines, err = DescribeMachines(machineClass, secret)
+			return err
 		} else {
 			return err
 		}
@@ -47,7 +49,7 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 }
 
 // CheckForOrphanedResources will search the cloud provider for orphaned resources that are left behind after the test cases
-func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, error) {
+func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, []string, error) {
 	// Check for VM instances with matching tags/labels
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
@@ -57,22 +59,21 @@ func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, error) {
 
 	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", r.MachineClass, r.Secret)
 	if err != nil {
-		return instances, nil, err
+		return instances, nil, nil, err
 	}
 
 	// Check for available volumes in cloud provider with tag/label [Status:available]
 	availVols, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, r.MachineClass, r.Secret)
 	if err != nil {
-		return instances, availVols, err
+		return instances, availVols, nil, err
 	}
 
+	availMachines, _ := DescribeMachines(r.MachineClass, r.Secret)
 	// Check for available vpc and network interfaces in cloud provider with tag
 	err = AdditionalResourcesCheck(clusterTag, clusterTagValue)
-	if err != nil {
-		return instances, availVols, err
-	}
 
-	return instances, availVols, nil
+	return instances, availVols, availMachines, err
+
 }
 
 // DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
@@ -106,7 +107,7 @@ func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecutio
 
 // DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
 func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
-	afterTestExecutionInstances, afterTestExecutionAvailVols, err := r.ProbeResources()
+	afterTestExecutionInstances, afterTestExecutionAvailVols, afterTestExecutionAvailmachines, err := r.ProbeResources()
 	//Check there is no error occured
 	if err == nil {
 		orphanedResourceInstances := DifferenceOrphanedResources(r.InitialInstances, afterTestExecutionInstances)
@@ -117,6 +118,11 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 		orphanedResourceAvailVols := DifferenceOrphanedResources(r.InitialVolumes, afterTestExecutionAvailVols)
 		if orphanedResourceAvailVols != nil {
 			fmt.Println("orphaned volumes are:", orphanedResourceAvailVols)
+			return true
+		}
+		orphanedResourceAvailMachines := DifferenceOrphanedResources(r.InitialMachines, afterTestExecutionAvailmachines)
+		if orphanedResourceAvailMachines != nil {
+			fmt.Println("orphaned volumes are:", orphanedResourceAvailMachines)
 			return true
 		}
 		return false

@@ -605,10 +605,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("checking for errors")
 				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
 				ginkgo.By("updatedReplicas to be 4")
-				gomega.Eventually(c.ControlKubeCluster.GetUpdatedReplicasCount("test-machine-deployment", c.controlClusterNamespace), 1200, 5).Should(gomega.BeNumerically("==", 4))
+				gomega.Eventually(c.ControlKubeCluster.GetUpdatedReplicasCount("test-machine-deployment", c.controlClusterNamespace), 900, 5).Should(gomega.BeNumerically("==", 4))
 				ginkgo.By("number of ready nodes be 4 more")
-				gomega.Eventually(c.TargetKubeCluster.NumberOfNodes, 1200, 5).Should(gomega.BeNumerically("==", initialNodes+4))
-				gomega.Eventually(c.TargetKubeCluster.NumberOfReadyNodes, 1200, 5).Should(gomega.BeNumerically("==", initialNodes+4))
+				gomega.Eventually(c.TargetKubeCluster.NumberOfNodes, 300, 5).Should(gomega.BeNumerically("==", initialNodes+4))
+				gomega.Eventually(c.TargetKubeCluster.NumberOfReadyNodes, 300, 5).Should(gomega.BeNumerically("==", initialNodes+4))
 
 			})
 		})

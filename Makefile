@@ -18,19 +18,13 @@ IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-ma
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
-CONTROL_KUBECONFIG  := /Users/i348967/.kube/config-tonia-control
-TARGET_KUBECONFIG   := /Users/i348967/.kube/config-tonia-aws
-# MCM_IMAGE_TAG		:=
-# MC_IMAGE_TAG		:=
-MCM_IMAGE_TAG		:= v0.38.0
-MC_IMAGE_TAG		:= v0.7.0
-TEST_DIR 			:= /tmp
-
-LEADER_ELECT 	   := "true"
-
-# CLOUD_PROVIDER_SECRET := /Users/i348967/local-storage/src/github.com/toniajuliejackson/machine-controller-manager-provider-aws/dev/cp_secret_new.yaml
-# CONTROL_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-aws-seed-local06022021.yaml
-# TARGET_KUBECONFIG:= /Users/i348967/.kube/kubeconfigs_kubeconfig-ash-shoot-06022021.yaml
+CONTROL_KUBECONFIG  := dev/control_kubeconfig.yaml
+TARGET_KUBECONFIG   := dev/target_kubeconfig.yaml
+MCM_IMAGE_TAG		:=
+MC_IMAGE_TAG		:=
+# MCM_IMAGE_TAG		:= v0.38.0
+# MC_IMAGE_TAG		:= v0.7.0
+LEADER_ELECT 	    := "true"
 
 #########################################
 # Rules for running helper scripts

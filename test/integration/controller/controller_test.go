@@ -32,7 +32,7 @@ package controller_test
 
 import (
 	"github.com/gardener/machine-controller-manager-provider-aws/test/integration/provider"
-	"github.com/gardener/machine-controller-manager/pkg/integrationtest/common"
+	"github.com/gardener/machine-controller-manager/pkg/test/integration/common"
 	. "github.com/onsi/ginkgo"
 )
 

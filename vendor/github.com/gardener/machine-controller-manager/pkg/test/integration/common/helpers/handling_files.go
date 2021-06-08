@@ -108,7 +108,7 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 						return err
 					}
 				}
-				err = c.CheckEstablished(crdName)
+				err = c.checkEstablished(crdName)
 				if err != nil {
 					log.Printf("%s crd can not be established because of an error\n", crdName)
 					return err
@@ -145,9 +145,9 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 	return nil
 }
 
-// CheckEstablished uses the specified name to check if it is established
-func (c *Cluster) CheckEstablished(crdName string) error {
-	/* TO-DO: This function checks the CRD for an established status
+// checkEstablished uses the specified name to check if it is established
+func (c *Cluster) checkEstablished(crdName string) error {
+	/* This function checks the CRD for an established status
 	if established status is not met, it will sleep until it meets
 	*/
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
@@ -212,7 +212,11 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 	return nil
 }
 
-func Rotate(fileName string) {
+/*
+RotateLogFile takes file name as input and returns a file object obtained by os.Create
+If the file exists already then it renames it so that a new file can be created
+*/
+func RotateLogFile(fileName string) (*os.File, error) {
 	/*
 	  startMachineController starts the machine controller
 	*/
@@ -222,5 +226,8 @@ func Rotate(fileName string) {
 			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
 		}
 		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
+		fileObj, err := os.Create(fileName)
+		return fileObj, err
 	}
+	return nil, err
 }

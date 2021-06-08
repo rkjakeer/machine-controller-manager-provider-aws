@@ -74,9 +74,9 @@ github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alph
 github.com/gardener/machine-controller-manager/pkg/fakeclient
 github.com/gardener/machine-controller-manager/pkg/features
 github.com/gardener/machine-controller-manager/pkg/handlers
-github.com/gardener/machine-controller-manager/pkg/integrationtest/common
-github.com/gardener/machine-controller-manager/pkg/integrationtest/common/helpers
 github.com/gardener/machine-controller-manager/pkg/options
+github.com/gardener/machine-controller-manager/pkg/test/integration/common
+github.com/gardener/machine-controller-manager/pkg/test/integration/common/helpers
 github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig
 github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus
 github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core

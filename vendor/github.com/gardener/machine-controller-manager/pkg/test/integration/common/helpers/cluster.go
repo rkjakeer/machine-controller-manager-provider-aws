@@ -1,8 +1,6 @@
 package helpers
 
 import (
-	"log"
-
 	mcmClientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,14 +102,4 @@ func (c *Cluster) ClusterName() (string, error) {
 		}
 	}
 	return clusterName, err
-}
-
-//GetUpdatedReplicasCount tries to retrieve the list of node objects in the cluster.
-func (c *Cluster) GetUpdatedReplicasCount(machineDeploymentName string, namespace string) int32 {
-
-	machineDeployment, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Get(machineDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		log.Println("Failed to get deployment object")
-	}
-	return machineDeployment.Status.UpdatedReplicas
 }

@@ -48,8 +48,8 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 	}
 }
 
-// CheckForOrphanedResources will search the cloud provider for orphaned resources that are left behind after the test cases
-func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, []string, error) {
+// probeResources will look for resources currently available and returns them
+func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, error) {
 	// Check for VM instances with matching tags/labels
 	// Describe volumes attached to VM instance & delete the volumes
 	// Finally delete the VM instance
@@ -76,8 +76,8 @@ func (r *ResourcesTrackerImpl) ProbeResources() ([]string, []string, []string, e
 
 }
 
-// DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
-func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecution []string) []string {
+// differenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
+func differenceOrphanedResources(beforeTestExecution []string, afterTestExecution []string) []string {
 	var diff []string
 
 	// Loop two times, first to find beforeTestExecution strings not in afterTestExecution,
@@ -105,22 +105,24 @@ func DifferenceOrphanedResources(beforeTestExecution []string, afterTestExecutio
 	return diff
 }
 
-// DifferenceOrphanedResources checks for difference in the found orphaned resource before test execution with the list after test execution
+/* IsOrphanedResourcesAvailable checks whether there are any orphaned resources left.
+If yes, then prints them and returns true. If not, then returns false
+*/
 func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
-	afterTestExecutionInstances, afterTestExecutionAvailVols, afterTestExecutionAvailmachines, err := r.ProbeResources()
+	afterTestExecutionInstances, afterTestExecutionAvailVols, afterTestExecutionAvailmachines, err := r.probeResources()
 	//Check there is no error occured
 	if err == nil {
-		orphanedResourceInstances := DifferenceOrphanedResources(r.InitialInstances, afterTestExecutionInstances)
+		orphanedResourceInstances := differenceOrphanedResources(r.InitialInstances, afterTestExecutionInstances)
 		if orphanedResourceInstances != nil {
 			fmt.Println("orphaned instances are:", orphanedResourceInstances)
 			return true
 		}
-		orphanedResourceAvailVols := DifferenceOrphanedResources(r.InitialVolumes, afterTestExecutionAvailVols)
+		orphanedResourceAvailVols := differenceOrphanedResources(r.InitialVolumes, afterTestExecutionAvailVols)
 		if orphanedResourceAvailVols != nil {
 			fmt.Println("orphaned volumes are:", orphanedResourceAvailVols)
 			return true
 		}
-		orphanedResourceAvailMachines := DifferenceOrphanedResources(r.InitialMachines, afterTestExecutionAvailmachines)
+		orphanedResourceAvailMachines := differenceOrphanedResources(r.InitialMachines, afterTestExecutionAvailmachines)
 		if orphanedResourceAvailMachines != nil {
 			fmt.Println("orphaned volumes are:", orphanedResourceAvailMachines)
 			return true

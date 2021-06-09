@@ -42,7 +42,7 @@ var _ = BeforeSuite(commons.SetupBeforeSuite)
 
 var _ = AfterSuite(commons.Cleanup)
 
-var _ = Describe("Integration test", func() {
+var _ = Describe("Machine controllers test", func() {
 	commons.BeforeEachCheck()
 	commons.ControllerTests()
 })

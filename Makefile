@@ -20,6 +20,10 @@ PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
 CONTROL_KUBECONFIG  := dev/control_kubeconfig.yaml
 TARGET_KUBECONFIG   := dev/target_kubeconfig.yaml
+
+# Below ones are used in tests
+MACHINECLASS_V1 	:= dev/machineclassv1.yaml 
+MACHINECLASS_V2 	:= 
 MCM_IMAGE_TAG		:=
 MC_IMAGE_TAG		:=
 # MCM_IMAGE_TAG		:= v0.38.0
@@ -95,6 +99,8 @@ test-integration: export targetKubeconfig=$(PWD)/$(TARGET_KUBECONFIG)
 test-integration: export mcContainerImage=$(MC_IMAGE_TAG)
 test-integration: export mcmContainerImage=$(MCM_IMAGE_TAG)
 test-integration: export controlClusterNamespace=$(CONTROL_NAMESPACE)
+test-integration: export machineClassV1=$(MACHINECLASS_V1)
+test-integration: export machineClassV2=$(MACHINECLASS_V2)
 test-integration: 
 	.ci/integration_test
 

@@ -2,6 +2,7 @@ package helpers
 
 import (
 	mcmClientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -102,4 +103,51 @@ func (c *Cluster) ClusterName() (string, error) {
 		}
 	}
 	return clusterName, err
+}
+
+// getSecretData combines secrets
+func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.SecretReference) (map[string][]byte, error) {
+	var secretData map[string][]byte
+
+	for _, secretRef := range secretRefs {
+		if secretRef == nil {
+			continue
+		}
+
+		secretRef, err := c.getSecret(secretRef, machineClassName)
+		if err != nil {
+			return nil, err
+		}
+
+		if secretRef != nil {
+			secretData = mergeDataMaps(secretData, secretRef.Data)
+		}
+	}
+
+	return secretData, nil
+}
+
+func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][]byte {
+	out := make(map[string][]byte)
+
+	for _, m := range append([]map[string][]byte{in}, maps...) {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+
+	return out
+}
+
+// getSecret retrieves the kubernetes secret if found
+func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
+	if ref == nil {
+		// If no secretRef, return nil
+		return nil, nil
+	}
+	secretRef, err := c.Clientset.CoreV1().Secrets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return secretRef, err
 }

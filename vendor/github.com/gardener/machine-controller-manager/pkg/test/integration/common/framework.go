@@ -452,19 +452,12 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	clusterName, err := c.ControlCluster.ClusterName()
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	ginkgo.By("Looking for secret resource refered in machineclass in the control cluster")
-	secret, err := c.ControlCluster.Clientset.CoreV1().Secrets(machineClass.SecretRef.Namespace).Get(machineClass.SecretRef.Name, metav1.GetOptions{})
+	ginkgo.By("Looking for secrets refered in machineclass in the control cluster")
+	secretData, err := c.ControlCluster.GetSecretData(machineClass.Name, machineClass.SecretRef, machineClass.CredentialsSecretRef)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if machineClass.CredentialsSecretRef != nil {
-		ginkgo.By("Looking for credentialsSecret resource refered in machineclass in the control cluster")
-		alternateSecret, err := c.ControlCluster.Clientset.CoreV1().Secrets(machineClass.CredentialsSecretRef.Namespace).Get(machineClass.CredentialsSecretRef.Name, metav1.GetOptions{})
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		secret = alternateSecret
-	}
-
 	ginkgo.By("Initializing orphan resource tracker")
-	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secret, clusterName)
+	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secretData, clusterName)
 	//Check there is no error occured
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	log.Println("orphan resource tracker initialized")

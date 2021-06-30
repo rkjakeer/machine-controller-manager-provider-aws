@@ -4,41 +4,32 @@ import (
 	"fmt"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	v1 "k8s.io/api/core/v1"
 )
-
-// type ResourcesTrackerInterface struct {
-// 	InitialVolumes   []string
-// 	InitialInstances []string
-// 	MachineClass     *v1alpha1.MachineClass
-// 	Secret           *v1.Secret
-// 	ClusterName      string
-// }
 
 type ResourcesTrackerImpl struct {
 	InitialVolumes   []string
 	InitialInstances []string
 	InitialMachines  []string
 	MachineClass     *v1alpha1.MachineClass
-	Secret           *v1.Secret
+	SecretData       map[string][]byte
 	ClusterName      string
 }
 
-func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secret *v1.Secret, clusterName string) error {
+func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secretData map[string][]byte, clusterName string) error {
 
 	clusterTag := "tag:kubernetes.io/cluster/" + clusterName
 	clusterTagValue := "1"
 
 	r.MachineClass = machineClass
-	r.Secret = secret
+	r.SecretData = secretData
 	r.ClusterName = clusterName
-	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secret)
+	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", machineClass, secretData)
 	if err == nil {
 		r.InitialInstances = instances
-		volumes, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secret)
+		volumes, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, machineClass, secretData)
 		if err == nil {
 			r.InitialVolumes = volumes
-			r.InitialMachines, err = DescribeMachines(machineClass, secret)
+			r.InitialMachines, err = DescribeMachines(machineClass, secretData)
 			return err
 		} else {
 			return err
@@ -57,18 +48,18 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, e
 	clusterTag := "tag:kubernetes.io/cluster/" + r.ClusterName
 	clusterTagValue := "1"
 
-	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", r.MachineClass, r.Secret)
+	instances, err := DescribeInstancesWithTag("tag:mcm-integration-test", "true", r.MachineClass, r.SecretData)
 	if err != nil {
 		return instances, nil, nil, err
 	}
 
 	// Check for available volumes in cloud provider with tag/label [Status:available]
-	availVols, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, r.MachineClass, r.Secret)
+	availVols, err := DescribeAvailableVolumes(clusterTag, clusterTagValue, r.MachineClass, r.SecretData)
 	if err != nil {
 		return instances, availVols, nil, err
 	}
 
-	availMachines, _ := DescribeMachines(r.MachineClass, r.Secret)
+	availMachines, _ := DescribeMachines(r.MachineClass, r.SecretData)
 	// Check for available vpc and network interfaces in cloud provider with tag
 	err = AdditionalResourcesCheck(clusterTag, clusterTagValue)
 

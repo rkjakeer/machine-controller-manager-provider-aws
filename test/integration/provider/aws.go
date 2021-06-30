@@ -54,13 +54,13 @@ func newSession(machineClass *v1alpha1.MachineClass, secret *v1.Secret) *session
 	return sess
 }
 
-func DescribeMachines(machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([]string, error) {
+func DescribeMachines(machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
 	var machines []string
 	var sPI spi.PluginSPIImpl
 	driverprovider := providerDriver.NewAWSDriver(&sPI)
 	machineList, err := driverprovider.ListMachines(context.TODO(), &driver.ListMachinesRequest{
 		MachineClass: machineClass,
-		Secret:       secret,
+		Secret:       &v1.Secret{Data: secretData},
 	})
 	if err != nil {
 		return nil, err
@@ -74,8 +74,8 @@ func DescribeMachines(machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([
 }
 
 // DescribeInstancesWithTag describes the instance with the specified tag
-func DescribeInstancesWithTag(tagName string, tagValue string, machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([]string, error) {
-	sess := newSession(machineClass, secret)
+func DescribeInstancesWithTag(tagName string, tagValue string, machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
+	sess := newSession(machineClass, &v1.Secret{Data: secretData})
 	svc := ec2.New(sess)
 	var instancesID []string
 	input := &ec2.DescribeInstancesInput{
@@ -133,8 +133,8 @@ func TerminateInstance(instanceID string) error {
 }
 
 // DescribeAvailableVolumes describes volumes with the specified tag
-func DescribeAvailableVolumes(tagName string, tagValue string, machineClass *v1alpha1.MachineClass, secret *v1.Secret) ([]string, error) {
-	sess := newSession(machineClass, secret)
+func DescribeAvailableVolumes(tagName string, tagValue string, machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
+	sess := newSession(machineClass, &v1.Secret{Data: secretData})
 	svc := ec2.New(sess)
 	var availVolID []string
 	input := &ec2.DescribeVolumesInput{

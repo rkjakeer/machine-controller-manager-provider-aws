@@ -1,8 +1,6 @@
 package helpers
 
 import (
-	"log"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,14 +35,4 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 func (c *Cluster) GetNumberOfNodes() int16 {
 	nodes, _ := c.getNodes()
 	return int16(len(nodes.Items))
-}
-
-//GetUpdatedReplicasCount tries to retrieve the updated replica count for a machinedeployment
-func (c *Cluster) GetUpdatedReplicasCount(machineDeploymentName string, namespace string) int32 {
-
-	machineDeployment, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Get(machineDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		log.Println("Failed to get deployment object")
-	}
-	return machineDeployment.Status.UpdatedReplicas
 }

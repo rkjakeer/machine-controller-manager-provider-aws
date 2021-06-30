@@ -5,7 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Cluster) ControlClusterRolesAndRoleBindingSetup() {
+func (c *Cluster) ControlClusterRolesAndRoleBindingSetup(namespace string) {
 	c.RbacClient.ClusterRoles().Create(&rbacapi.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "machine-controller-manager",
@@ -75,7 +75,7 @@ func (c *Cluster) ControlClusterRolesAndRoleBindingSetup() {
 			{
 				Kind:      "ServiceAccount",
 				Name:      "default",
-				Namespace: "default",
+				Namespace: namespace,
 			},
 		},
 		RoleRef: rbacapi.RoleRef{

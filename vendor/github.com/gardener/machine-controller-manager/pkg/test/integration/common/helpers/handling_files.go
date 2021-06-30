@@ -89,7 +89,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 }
 
 // applyFile uses yaml to create resources in kubernetes
-func (c *Cluster) applyFile(filePath string, namespace string) error {
+func (c *Cluster) ApplyFile(filePath string, namespace string) error {
 	/* TO-DO: This function checks for the availability of filePath
 	if available, then apply that file to kubernetes cluster c
 	*/
@@ -103,7 +103,6 @@ func (c *Cluster) applyFile(filePath string, namespace string) error {
 				_, err := c.apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 				if err != nil {
 					if strings.Contains(err.Error(), "already exists") {
-						//log.Printf("%s already exists in cluster", crdName)
 					} else {
 						return err
 					}
@@ -198,7 +197,7 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 			log.Printf("%s is a directory.\n", file)
 		case mode.IsRegular():
 			// do file stuff
-			err := c.applyFile(file, namespace)
+			err := c.ApplyFile(file, namespace)
 			if err != nil {
 				//Ignore error if it says the crd already exists
 				if !strings.Contains(err.Error(), "already exists") {
@@ -220,14 +219,12 @@ func RotateLogFile(fileName string) (*os.File, error) {
 	/*
 	  startMachineController starts the machine controller
 	*/
-	_, err := os.Stat(fileName)
-	if err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
+	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
 		for i := 9; i > 0; i-- {
 			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
 		}
 		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
-		fileObj, err := os.Create(fileName)
-		return fileObj, err
 	}
-	return nil, err
+	fileObj, err := os.Create(fileName)
+	return fileObj, err
 }

@@ -16,7 +16,7 @@ func (c *Cluster) CreateMachine(namespace string) error {
 		Spec: v1alpha1.MachineSpec{
 			Class: v1alpha1.ClassSpec{
 				Kind: "MachineClass",
-				Name: "test-mc",
+				Name: "test-mc-v1",
 			},
 		},
 	})
@@ -51,7 +51,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string) error {
 				Spec: v1alpha1.MachineSpec{
 					Class: v1alpha1.ClassSpec{
 						Kind: "MachineClass",
-						Name: "test-mc",
+						Name: "test-mc-v1",
 					},
 				},
 			},

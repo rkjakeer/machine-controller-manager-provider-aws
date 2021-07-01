@@ -251,8 +251,8 @@ github.com/prometheus/common v0.0.0-20181126121408-4724e9255275/go.mod h1:daVV7q
 github.com/prometheus/procfs v0.0.0-20181204211112-1dc9a6cbc91a h1:9a8MnZMP0X2nLJdBg+pBmGgkJlSaKC2KaQmTCk1XDtE=
 github.com/prometheus/procfs v0.0.0-20181204211112-1dc9a6cbc91a/go.mod h1:c3At6R/oaqEKCNdg8wHV1ftS6bRYblBhIjjI8uT2IGk=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
-github.com/rkjakeer/machine-controller-manager v0.38.1-0.20210701062324-b99b1c6820f3 h1:oaPeg411UgVGxCxdStTzJXuGj/njZF3Xl7FPS/lJhz8=
-github.com/rkjakeer/machine-controller-manager v0.38.1-0.20210701062324-b99b1c6820f3/go.mod h1:QWeF8c5rSHxtjAGAeptlIAIFNJo1HeT6ic3/1DioQU0=
+github.com/rkjakeer/machine-controller-manager v0.38.1-0.20210701092429-b810a051db73 h1:tSWORL9ui+h0cqK62h2a7Rab8xg2/Pu5p6ZXhjWuaDA=
+github.com/rkjakeer/machine-controller-manager v0.38.1-0.20210701092429-b810a051db73/go.mod h1:QWeF8c5rSHxtjAGAeptlIAIFNJo1HeT6ic3/1DioQU0=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/sergi/go-diff v1.1.0 h1:we8PVUC3FE2uYfodKH/nBHMSetSfHDR6scGdBi+erh0=

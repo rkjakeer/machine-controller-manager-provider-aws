@@ -39,7 +39,7 @@ var (
 
 	// control cluster namespace to create resources.
 	// ignored if the target cluster is a shoot of the control cluster
-	controlClusterNamespace = os.Getenv("controlClusterNamespace")
+	controlClusterNamespace = os.Getenv("CONTROL_CLUSTER_NAMESPACE")
 
 	// make processes/sessions started by gexec. available only if the controllers are running in local setup. updated during runtime
 	mcmsession, mcsession *gexec.Session
@@ -50,18 +50,22 @@ var (
 	// used only if control cluster is seed
 	mcmDeploymentOrigObj *appsV1.Deployment
 
+	// machineControllerManagerDeploymentName specifies the name of the deployment
+	// running the mc and mcm containers in it.
+	machineControllerManagerDeploymentName = os.Getenv("MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME")
+
 	// names of machineclass resource.
 	testMachineClassResources = []string{"test-mc-v1", "test-mc-v2"}
 
 	// path for v1machineclass yaml file to be used while creating machine resources
 	// name of the machineclass will always be test-mc-v1. overriding the name of machineclass in yaml file
 	// ignored if control cluster is seed cluster
-	v1MachineClassPath = os.Getenv("machineClassV1")
+	v1MachineClassPath = os.Getenv("MACHINECLASS_V1")
 
 	// path for v1machineclass yaml file to be used while upgrading machine deployment
 	// if machineClassV2 is not set then v1MachineClassPath will be used intead for creating test-mc-v2 class
 	// ignored if control cluster if seed cluster
-	v2MachineClassPath = os.Getenv("machineClassV2")
+	v2MachineClassPath = os.Getenv("MACHINECLASS_V2")
 )
 
 type IntegrationTestFramework struct {
@@ -93,8 +97,8 @@ func NewIntegrationTestFramework(resourcesTracker helpers.ResourcesTrackerInterf
 func (c *IntegrationTestFramework) initalizeClusters() error {
 	// checks for the validity of controlKubeConfig and targetKubeConfig clusters
 	// and intializes clientsets
-	controlKubeConfigPath := os.Getenv("controlKubeconfig")
-	targetKubeConfigPath := os.Getenv("targetKubeconfig")
+	controlKubeConfigPath := os.Getenv("CONTROL_KUBECONFIG")
+	targetKubeConfigPath := os.Getenv("TARGET_KUBECONFIG")
 	log.Printf("Control cluster kube-config - %s\n", controlKubeConfigPath)
 	log.Printf("Target cluster kube-config  - %s\n", targetKubeConfigPath)
 	if controlKubeConfigPath != "" {
@@ -144,7 +148,11 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 	return nil
 }
 
-func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag string, mcmContainerImageTag string, byCreating bool) error {
+func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImage string, mcmContainerImage string, byCreating bool) error {
+	if machineControllerManagerDeploymentName == "" {
+		machineControllerManagerDeploymentName = "machine-controller-manager"
+	}
+
 	if byCreating {
 		// Create clusterroles and clusterrolebindings for control and target cluster
 		// Create secret containing target kubeconfig file
@@ -171,7 +179,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 	}
 
 	// mcmDeploymentOrigObj holds a copy of original mcm deployment
-	result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+	result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 	if getErr != nil {
 		log.Printf("failed to get latest version of Deployment: %v", getErr)
 		return getErr
@@ -182,23 +190,15 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 	providerSpecificRegexp, _ := regexp.Compile("machine-controller-manager-provider-")
 	containers := mcmDeploymentOrigObj.Spec.Template.Spec.Containers
 	for i := range containers {
-		// splitedString holds image name in splitedString[0]
-		var splitedString []string
-		if strings.Contains(containers[i].Image, "@") {
-			splitedString = strings.Split(containers[i].Image, "@")
-		} else {
-			splitedString = strings.Split(containers[i].Image, ":")
-		}
-
 		if providerSpecificRegexp.Match([]byte(containers[i].Image)) {
 			// set container image to mcContainerImageTag as the name of the container contains provider
-			if len(mcContainerImageTag) != 0 {
-				containers[i].Image = splitedString[0] + ":" + mcContainerImageTag
+			if len(mcContainerImage) != 0 {
+				containers[i].Image = mcContainerImage
 			}
 		} else {
 			// set container image to mcmContainerImageTag as the name of container contains provider
-			if len(mcmContainerImageTag) != 0 {
-				containers[i].Image = splitedString[0] + ":" + mcmContainerImageTag
+			if len(mcmContainerImage) != 0 {
+				containers[i].Image = mcmContainerImage
 			}
 
 			// set machine-safety-overshooting-period to 300ms for freeze check to succeed
@@ -219,7 +219,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting to update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		mcmDeployment, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+		mcmDeployment, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 		if getErr != nil {
 			log.Printf("failed to get latest version of Deployment: %v", getErr)
 			return getErr
@@ -231,7 +231,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 
 	ginkgo.By("Checking controllers are ready in kubernetes cluster")
 	gomega.Eventually(func() int {
-		deployment, err := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+		deployment, err := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 		if err != nil {
 			log.Println("Failed to get deployment object")
 		}
@@ -242,7 +242,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 }
 
 func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
-	result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+	result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 	if getErr != nil {
 		return getErr
 	}
@@ -251,7 +251,7 @@ func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
+		result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 		if getErr != nil {
 			return getErr
 		}
@@ -366,8 +366,8 @@ func rotateLogFile(fileName string) (*os.File, error) {
 // - invokes InitializeResourcesTracker or rti for orphan resource check.
 func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	log.SetOutput(ginkgo.GinkgoWriter)
-	mcContainerImageTag := os.Getenv("mcContainerImage")
-	mcmContainerImageTag := os.Getenv("mcmContainerImage")
+	mcContainerImage := os.Getenv("MC_CONTAINER_IMAGE")
+	mcmContainerImage := os.Getenv("MCM_CONTAINER_IMAGE")
 
 	ginkgo.By("Checking for the clusters if provided are available")
 	gomega.Expect(c.initalizeClusters()).To(gomega.BeNil())
@@ -376,7 +376,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	// if control cluster is not the seed, then applyCrds from the mcm repo by cloning
 	// if no image tags specified, then also clone the mcm repo as the the mcm process needs to be started
 
-	if !c.ControlCluster.IsSeed(c.TargetCluster) || !(len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0) {
+	if !c.ControlCluster.IsSeed(c.TargetCluster) || !(len(mcContainerImage) != 0 && len(mcmContainerImage) != 0) {
 
 		ginkgo.By("Cloning Machine-Controller-Manager github repo")
 		gomega.Expect(helpers.CloneRepo("https://github.com/gardener/machine-controller-manager.git", mcmRepoPath)).To(gomega.BeNil())
@@ -390,16 +390,16 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	}
 
 	// starting controllers
-	if len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0 {
+	if len(mcContainerImage) != 0 && len(mcmContainerImage) != 0 {
 
 		// if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
 		// create/update machinecontrollermanager deployment in the control-cluster with specified image
 		if c.ControlCluster.IsSeed(c.TargetCluster) {
 			ginkgo.By("Updating MCM Deployemnt")
-			gomega.Expect(c.prepareMcmDeployment(mcContainerImageTag, mcmContainerImageTag, false)).To(gomega.BeNil())
+			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, false)).To(gomega.BeNil())
 		} else {
 			ginkgo.By("Creating MCM Deployemnt")
-			gomega.Expect(c.prepareMcmDeployment(mcContainerImageTag, mcmContainerImageTag, true)).To(gomega.BeNil())
+			gomega.Expect(c.prepareMcmDeployment(mcContainerImage, mcmContainerImage, true)).To(gomega.BeNil())
 		}
 
 	} else {
@@ -462,7 +462,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 // BeforeEachCheck checks if all the nodes are ready and the controllers are runnings
 func (c *IntegrationTestFramework) BeforeEachCheck() {
 	ginkgo.BeforeEach(func() {
-		if len(os.Getenv("mcContainerImage")) == 0 && len(os.Getenv("mcmContainerImage")) == 0 {
+		if len(os.Getenv("MC_CONTAINER_IMAGE")) == 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) == 0 {
 			ginkgo.By("Checking machineController process is running")
 			gomega.Expect(mcsession.ExitCode()).Should(gomega.Equal(-1))
 			ginkgo.By("Checking machineControllerManager process is running")
@@ -698,7 +698,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 func (c *IntegrationTestFramework) Cleanup() {
 	ginkgo.By("Running Cleanup")
 	//running locally
-	if !(len(os.Getenv("mcContainerImage")) != 0 && len(os.Getenv("mcmContainerImage")) != 0) {
+	if !(len(os.Getenv("MC_CONTAINER_IMAGE")) != 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) != 0) {
 		for i := 0; i < 5; i++ {
 			if mcsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller ")
@@ -781,11 +781,11 @@ func (c *IntegrationTestFramework) Cleanup() {
 		})
 	} else {
 		// To-Do: Remove crds
-		if len(os.Getenv("mcContainerImage")) != 0 && len(os.Getenv("mcmContainerImage")) != 0 {
+		if len(os.Getenv("MC_CONTAINER_IMAGE")) != 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) != 0 {
 			c.ControlCluster.ClusterRolesAndRoleBindingCleanup()
 			c.TargetCluster.ClusterRolesAndRoleBindingCleanup()
 			c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Delete("machine-controller-manager-target", &metav1.DeleteOptions{})
-			c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Delete("machine-controller-manager", &metav1.DeleteOptions{})
+			c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Delete(machineControllerManagerDeploymentName, &metav1.DeleteOptions{})
 		}
 	}
 }

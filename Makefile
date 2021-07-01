@@ -27,7 +27,7 @@ MACHINECLASS_V2 	:=
 MCM_IMAGE			:=
 MC_IMAGE			:=
 # MCM_IMAGE			:= eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.39.0
-# MC_IMAGE			:= $(IMAGE_REPOSITORY):$(IMAGE_TAG)
+# MC_IMAGE			:= $(IMAGE_REPOSITORY):v0.7.0
 LEADER_ELECT 	    := "true"
 
 #########################################

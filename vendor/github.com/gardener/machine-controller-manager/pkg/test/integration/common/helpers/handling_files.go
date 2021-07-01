@@ -13,6 +13,7 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	mcmscheme "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/api/apps/v1"
+	rbacv1bata1 "k8s.io/api/rbac/v1beta1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsscheme "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,7 +96,6 @@ func (c *Cluster) ApplyFile(filePath string, namespace string) error {
 		for key, obj := range runtimeobj {
 			switch kind[key].Kind {
 			case "CustomResourceDefinition":
-				crdName := obj.(*apiextensionsv1beta1.CustomResourceDefinition).Name
 				crd := obj.(*apiextensionsv1beta1.CustomResourceDefinition)
 				_, err := c.apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 				if err != nil {
@@ -104,9 +104,9 @@ func (c *Cluster) ApplyFile(filePath string, namespace string) error {
 						return err
 					}
 				}
-				err = c.checkEstablished(crdName)
+				err = c.checkEstablished(crd.Name)
 				if err != nil {
-					log.Printf("%s crd can not be established because of an error\n", crdName)
+					log.Printf("%s crd can not be established because of an error\n", crd.Name)
 					return err
 				}
 			case "MachineClass":
@@ -130,6 +130,21 @@ func (c *Cluster) ApplyFile(filePath string, namespace string) error {
 			case "Deployment":
 				resource := obj.(*v1.Deployment)
 				_, err := c.Clientset.AppsV1().Deployments(namespace).Create(resource)
+				if err != nil {
+					return err
+				}
+			case "ClusterRoleBinding":
+				resource := obj.(*rbacv1bata1.ClusterRoleBinding)
+				for i := range resource.Subjects {
+					resource.Subjects[i].Namespace = namespace
+				}
+				_, err := c.Clientset.RbacV1beta1().ClusterRoleBindings().Create(resource)
+				if err != nil {
+					return err
+				}
+			case "ClusterRole":
+				resource := obj.(*rbacv1bata1.ClusterRole)
+				_, err := c.Clientset.RbacV1beta1().ClusterRoles().Create(resource)
 				if err != nil {
 					return err
 				}
@@ -168,38 +183,21 @@ func (c *Cluster) checkEstablished(crdName string) error {
 }
 
 func (c *Cluster) ApplyFiles(source string, namespace string) error {
-	var files []string
 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range files {
-		fi, err := os.Stat(file)
-		if err != nil {
-			log.Println("Error: file does not exist!")
-			return err
-		}
-
-		switch mode := fi.Mode(); {
-		case mode.IsDir():
-			// do directory stuff
-			log.Printf("%s is a directory.\n", file)
-		case mode.IsRegular():
-			// do file stuff
-			err := c.ApplyFile(file, namespace)
+		if info.Mode().IsDir() {
+			log.Printf("%s is a directory.\n", path)
+		} else if info.Mode().IsRegular() {
+			err := c.ApplyFile(path, namespace)
 			if err != nil {
 				//Ignore error if it says the crd already exists
 				if !strings.Contains(err.Error(), "already exists") {
-					log.Printf("Failed to apply yaml file %s", file)
+					log.Printf("Failed to apply yaml file %s", path)
 					return err
 				}
 			}
-			log.Printf("file %s has been successfully applied to cluster", file)
+			log.Printf("file %s has been successfully applied to cluster", path)
 		}
-	}
-	return nil
+		return nil
+	})
+	return err
 }

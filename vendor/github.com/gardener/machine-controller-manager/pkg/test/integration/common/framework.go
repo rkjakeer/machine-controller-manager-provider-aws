@@ -157,12 +157,31 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImage string,
 		// Create clusterroles and clusterrolebindings for control and target cluster
 		// Create secret containing target kubeconfig file
 		// Create machine-deployment using the yaml file
-		c.ControlCluster.ControlClusterRolesAndRoleBindingSetup(controlClusterNamespace)
-		c.TargetCluster.TargetClusterRolesAndRoleBindingSetup()
+		controlClusterRegexp, _ := regexp.Compile("control-cluster-role")
+		targetClusterRegexp, _ := regexp.Compile("target-cluster-role")
+		log.Printf("Creating required roles and rolebinginds")
+
+		err := filepath.Walk(filepath.Join(mcmRepoPath, "kubernetes/deployment/out-of-tree/"), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				if controlClusterRegexp.MatchString(info.Name()) {
+					err = c.ControlCluster.ApplyFile(path, controlClusterNamespace)
+				} else if targetClusterRegexp.MatchString(info.Name()) {
+					err = c.TargetCluster.ApplyFile(path, "default")
+				}
+			}
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
 		configFile, _ := os.ReadFile(c.TargetCluster.KubeConfigFilePath)
 		c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Create(&coreV1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "machine-controller-manager-target",
+				Name: "machine-controller-manager",
 			},
 			Data: map[string][]byte{
 				"kubeconfig": configFile,
@@ -170,9 +189,8 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImage string,
 			Type: coreV1.SecretTypeOpaque,
 		})
 
-		err := c.ControlCluster.
-			ApplyFile("../../../kubernetes/deployment.yaml",
-				controlClusterNamespace)
+		err = c.ControlCluster.ApplyFile("../../../kubernetes/deployment.yaml",
+			controlClusterNamespace)
 		if err != nil {
 			return err
 		}
@@ -190,7 +208,7 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImage string,
 	providerSpecificRegexp, _ := regexp.Compile("machine-controller-manager-provider-")
 	containers := mcmDeploymentOrigObj.Spec.Template.Spec.Containers
 	for i := range containers {
-		if providerSpecificRegexp.Match([]byte(containers[i].Image)) {
+		if providerSpecificRegexp.MatchString(containers[i].Image) {
 			// set container image to mcContainerImageTag as the name of the container contains provider
 			if len(mcContainerImage) != 0 {
 				containers[i].Image = mcContainerImage
@@ -230,13 +248,37 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImage string,
 	})
 
 	ginkgo.By("Checking controllers are ready in kubernetes cluster")
-	gomega.Eventually(func() int {
+	gomega.Eventually(func() error {
 		deployment, err := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get(machineControllerManagerDeploymentName, metav1.GetOptions{})
 		if err != nil {
-			log.Println("Failed to get deployment object")
+			return err
 		}
-		return int(deployment.Status.ReadyReplicas)
-	}, 60, 5).Should(gomega.BeNumerically("==", 1))
+		if deployment.Status.ReadyReplicas == 1 {
+			pods, err := c.ControlCluster.Clientset.CoreV1().Pods(controlClusterNamespace).List(metav1.ListOptions{
+				LabelSelector: "app=machine-controller-manager",
+			})
+			if err != nil {
+				return err
+			}
+			podsCount := len(pods.Items)
+			readyPods := 0
+			for _, pod := range pods.Items {
+				if len(pod.Spec.Containers) == 2 && pod.Status.ContainerStatuses[0].Ready {
+					if pod.Status.ContainerStatuses[1].Ready {
+						readyPods++
+					} else {
+						return fmt.Errorf("container(s) not ready.\n%s", pod.Status.ContainerStatuses[1].State.String())
+					}
+				} else {
+					return fmt.Errorf("containers(s) not ready.\n%s", pod.Status.ContainerStatuses[0].State.String())
+				}
+			}
+			if podsCount == readyPods {
+				return nil
+			}
+		}
+		return fmt.Errorf("deployment replicas are not ready.\n%s", deployment.Status.String())
+	}, 60, 5).Should(gomega.BeNil())
 
 	return retryErr
 }
@@ -648,7 +690,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Eventually(func() int {
 					machineDeployment, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
 					if err != nil {
-						log.Println("Failed to get deployment object")
+						log.Println("Failed to get machinedeployment object")
 					}
 					return int(machineDeployment.Status.UpdatedReplicas)
 				}, 300, 5).Should(gomega.BeNumerically("==", 4))
@@ -656,7 +698,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Eventually(func() int {
 					machineDeployment, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
 					if err != nil {
-						log.Println("Failed to get deployment object")
+						log.Println("Failed to get machinedeployment object")
 					}
 					return int(machineDeployment.Status.AvailableReplicas)
 				}, 300, 5).Should(gomega.BeNumerically("==", 4))
@@ -782,9 +824,13 @@ func (c *IntegrationTestFramework) Cleanup() {
 	} else {
 		// To-Do: Remove crds
 		if len(os.Getenv("MC_CONTAINER_IMAGE")) != 0 && len(os.Getenv("MCM_CONTAINER_IMAGE")) != 0 {
-			c.ControlCluster.ClusterRolesAndRoleBindingCleanup()
-			c.TargetCluster.ClusterRolesAndRoleBindingCleanup()
-			c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Delete("machine-controller-manager-target", &metav1.DeleteOptions{})
+			c.ControlCluster.RbacClient.ClusterRoles().Delete("machine-controller-manager-control", &metav1.DeleteOptions{})
+			c.ControlCluster.RbacClient.ClusterRoleBindings().Delete("machine-controller-manager-control", &metav1.DeleteOptions{})
+
+			c.TargetCluster.RbacClient.ClusterRoles().Delete("machine-controller-manager-target", &metav1.DeleteOptions{})
+			c.TargetCluster.RbacClient.ClusterRoleBindings().Delete("machine-controller-manager-target", &metav1.DeleteOptions{})
+
+			c.ControlCluster.Clientset.CoreV1().Secrets(controlClusterNamespace).Delete("machine-controller-manager", &metav1.DeleteOptions{})
 			c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Delete(machineControllerManagerDeploymentName, &metav1.DeleteOptions{})
 		}
 	}

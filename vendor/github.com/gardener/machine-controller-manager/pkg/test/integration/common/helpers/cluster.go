@@ -64,15 +64,13 @@ func NewCluster(kubeConfigPath string) (c *Cluster, e error) {
 // IsSeed checks whether the cluster is seed of target cluster
 func (c *Cluster) IsSeed(target *Cluster) bool {
 	/*
-		- (Check if the control cluster is a seed cluster and
+		- (Check if the control cluster is a seed cluster
 			Try to retrieve the cluster-name (clusters[0].name) from the target kubeconfig passed in.
 			 ---- Check if there is any cluster resource available ( means it is a seed cluster ) and see if there is any cluster with name same as to target cluster-name
-			 ---- It is not clear as to which client to use for accessing kind: Cluster resources.
 			 ---- Alternatively check if there is a namespace with same name as that of cluster name found in kube config
 			kubectl get clusters -A
 			NAME                             AGE
-			shoot--dev--ash-shoot-06022021   46h
-
+			shoot--landscape--project-shoot   46h
 	*/
 	targetClusterName, _ := target.ClusterName()
 	nameSpaces, _ := c.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
@@ -86,13 +84,7 @@ func (c *Cluster) IsSeed(target *Cluster) bool {
 
 //ClusterName retrieves cluster name from the kubeconfig
 func (c *Cluster) ClusterName() (string, error) {
-	/*
-		- Retrieves cluster name as per the kubeconfig path clusters[0].name
-	*/
-
 	var clusterName string
-	//kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&clientcmd.ClientConfigLoadingRules{ExplicitPath: c.kubeConfigFilePath},
-	//	&clientcmd.ConfigOverrides{})
 	config, err := clientcmd.LoadFromFile(c.KubeConfigFilePath)
 	if err != nil {
 		return clusterName, err
@@ -123,7 +115,6 @@ func (c *Cluster) GetSecretData(machineClassName string, secretRefs ...*v1.Secre
 			secretData = mergeDataMaps(secretData, secretRef.Data)
 		}
 	}
-
 	return secretData, nil
 }
 
@@ -142,7 +133,6 @@ func mergeDataMaps(in map[string][]byte, maps ...map[string][]byte) map[string][
 // getSecret retrieves the kubernetes secret if found
 func (c *Cluster) getSecret(ref *v1.SecretReference, MachineClassName string) (*v1.Secret, error) {
 	if ref == nil {
-		// If no secretRef, return nil
 		return nil, nil
 	}
 	secretRef, err := c.Clientset.CoreV1().Secrets(ref.Namespace).Get(ref.Name, metav1.GetOptions{})

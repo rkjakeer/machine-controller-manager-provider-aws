@@ -5,8 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//ProbeNodes tries to probe for nodes. Indirectly it checks whether the cluster is accessible.
-// If not accessible, then it returns an error
+//ProbeNodes tries to probe for nodes.
 func (c *Cluster) ProbeNodes() error {
 	_, err := c.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
 	return err

@@ -43,6 +43,7 @@ var (
 
 	// make processes/sessions started by gexec. available only if the controllers are running in local setup. updated during runtime
 	mcmsession, mcsession *gexec.Session
+
 	// mcmDeploymentOrigObj a placeholder for mcm deployment object running in seed cluster.
 	// it will be scaled down to 0 before test starts.
 	// also used in cleanup to restore the controllers to its original state.
@@ -90,10 +91,8 @@ func NewIntegrationTestFramework(resourcesTracker helpers.ResourcesTrackerInterf
 }
 
 func (c *IntegrationTestFramework) initalizeClusters() error {
-	/* prepareClusters checks for
-	- the validity of controlKubeConfig and targetKubeConfig flags
-	- It should return an error if thre is a error
-	*/
+	// checks for the validity of controlKubeConfig and targetKubeConfig clusters
+	// and intializes clientsets
 	controlKubeConfigPath := os.Getenv("controlKubeconfig")
 	targetKubeConfigPath := os.Getenv("targetKubeconfig")
 	log.Printf("Control cluster kube-config - %s\n", controlKubeConfigPath)
@@ -146,11 +145,6 @@ func (c *IntegrationTestFramework) initalizeClusters() error {
 }
 
 func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag string, mcmContainerImageTag string, byCreating bool) error {
-	/*
-		if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
-		update machinecontrollermanager deployment in the control-cluster with specified image
-		 -
-	*/
 	if byCreating {
 		// Create clusterroles and clusterrolebindings for control and target cluster
 		// Create secret containing target kubeconfig file
@@ -248,11 +242,6 @@ func (c *IntegrationTestFramework) prepareMcmDeployment(mcContainerImageTag stri
 }
 
 func (c *IntegrationTestFramework) scaleMcmDeployment(replicas int32) error {
-	/*
-		 - if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
-			 update machinecontrollermanager deployment in the control-cluster with specified image
-		 -
-	*/
 	result, getErr := c.ControlCluster.Clientset.AppsV1().Deployments(controlClusterNamespace).Get("machine-controller-manager", metav1.GetOptions{})
 	if getErr != nil {
 		return getErr
@@ -282,10 +271,6 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 	// probe for machine-class in the identified namespace and then creae a copy of this machine-class with
 	// additional delta available in machine-class-patch.json
 	// eg. tag (providerSpec.tags)  \"mcm-integration-test: "true"\"
-
-	// if len(v1MachineClassPath) == 0 {
-	// 	panic("machineclass path not found. Please set it using machineClassV1 environment variable")
-	// }
 
 	if !c.ControlCluster.IsSeed(c.TargetCluster) {
 		//use yaml files
@@ -360,6 +345,19 @@ func (c *IntegrationTestFramework) setupMachineClass() error {
 	return nil
 }
 
+// rotateLogFile takes file name as input and returns a file object obtained by os.Create
+// If the file exists already then it renames it so that a new file can be created
+func rotateLogFile(fileName string) (*os.File, error) {
+	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
+		for i := 9; i > 0; i-- {
+			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
+		}
+		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
+	}
+	fileObj, err := os.Create(fileName)
+	return fileObj, err
+}
+
 // SetupBeforeSuite performs the initial setup for the test by
 // - Checks control cluster and target clusters are accessible and initializes ControlCluster and TargetCluster.
 // - Check and optionally create crds (machineclass, machines, machinesets and machine deployment) using kubernetes/crds directory of the mcm repo.
@@ -394,9 +392,8 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	// starting controllers
 	if len(mcContainerImageTag) != 0 && len(mcmContainerImageTag) != 0 {
 
-		/* if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
-		create/update machinecontrollermanager deployment in the control-cluster with specified image
-		*/
+		// if any of mcmContainerImage  or mcContainerImageTag flag is non-empty then,
+		// create/update machinecontrollermanager deployment in the control-cluster with specified image
 		if c.ControlCluster.IsSeed(c.TargetCluster) {
 			ginkgo.By("Updating MCM Deployemnt")
 			gomega.Expect(c.prepareMcmDeployment(mcContainerImageTag, mcmContainerImageTag, false)).To(gomega.BeNil())
@@ -406,9 +403,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 		}
 
 	} else {
-		/*
-		 run mc and mcm locally
-		*/
+		// run mc and mcm locally
 		if c.ControlCluster.IsSeed(c.TargetCluster) {
 			ginkgo.By("Scaledown existing machine controllers")
 			gomega.Expect(c.scaleMcmDeployment(0)).To(gomega.BeNil())
@@ -420,7 +415,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace))
-		outputFile, err := helpers.RotateLogFile(mcLogFile)
+		outputFile, err := rotateLogFile(mcLogFile)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		sess, err := gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 		mcsession = sess
@@ -433,7 +428,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace))
-		outputFile, err = helpers.RotateLogFile(mcmLogFile)
+		outputFile, err = rotateLogFile(mcmLogFile)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -458,14 +453,13 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 
 	ginkgo.By("Initializing orphan resource tracker")
 	err = c.resourcesTracker.InitializeResourcesTracker(machineClass, secretData, clusterName)
-	//Check there is no error occured
+
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	log.Println("orphan resource tracker initialized")
 
 }
 
-// BeforeEachCheck checks if all the nodes are ready.
-// And the controllers are runnings
+// BeforeEachCheck checks if all the nodes are ready and the controllers are runnings
 func (c *IntegrationTestFramework) BeforeEachCheck() {
 	ginkgo.BeforeEach(func() {
 		if len(os.Getenv("mcContainerImage")) == 0 && len(os.Getenv("mcmContainerImage")) == 0 {
@@ -474,14 +468,12 @@ func (c *IntegrationTestFramework) BeforeEachCheck() {
 			ginkgo.By("Checking machineControllerManager process is running")
 			gomega.Expect(mcmsession.ExitCode()).Should(gomega.Equal(-1))
 		}
-		// Nodes are healthy
 		ginkgo.By("Checking nodes in target cluster are healthy")
 		gomega.Eventually(c.TargetCluster.GetNumberOfReadyNodes, 180, 5).Should(gomega.BeNumerically("==", c.TargetCluster.GetNumberOfNodes()))
 	})
 }
 
-// ControllerTests runs common tests by using yaml files in kubernetes directory inside provider specific repo.
-// Common tests are ...
+// ControllerTests runs common tests like ...
 // machine resource creation and deletion,
 // machine deployment resource creation, scale-up, scale-down, update and deletion. And
 // orphan resource check by invoking IsOrphanedResourcesAvailable from rti
@@ -490,15 +482,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
-			// Probe nodes currently available in target cluster
 			ginkgo.It("should not lead to any errors and add 1 more node in target cluste", func() {
-				// apply machine resource yaml file
+				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
 				gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace)).To(gomega.BeNil())
-				//fmt.Println("wait for 30 sec before probing for nodes")
 
-				// check whether there is one node more
 				ginkgo.By("Waiting until number of ready nodes is 1 more than initial nodes")
 				gomega.Eventually(c.TargetCluster.GetNumberOfNodes, 600, 5).Should(gomega.BeNumerically("==", initialNodes+1))
 				gomega.Eventually(c.TargetCluster.GetNumberOfReadyNodes, 600, 5).Should(gomega.BeNumerically("==", initialNodes+1))
@@ -523,10 +512,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			ginkgo.Context("when machines are not available", func() {
 				// delete one machine (non-existent) by random text as name of resource
 				// check there are no changes to nodes
-
 				ginkgo.It("should keep nodes intact", func() {
-					// Keep count of nodes available
-					// delete machine resource
 					machinesList, _ := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).List(metav1.ListOptions{})
 					if len(machinesList.Items) == 0 {
 						err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Delete("test-machine-dummy", &metav1.DeleteOptions{})
@@ -550,11 +536,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				//probe initialnodes before continuing
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 
-				// // apply machine deployment resource YAML
 				ginkgo.By("Checking for errors")
 				gomega.Expect(c.ControlCluster.CreateMachineDeployment(controlClusterNamespace)).To(gomega.BeNil())
 
-				// check whether all the expected nodes are ready
 				ginkgo.By("Waiting until number of ready nodes are 3 more than initial")
 				gomega.Eventually(c.TargetCluster.GetNumberOfNodes, 180, 5).Should(gomega.BeNumerically("==", initialNodes+3))
 				gomega.Eventually(c.TargetCluster.GetNumberOfReadyNodes, 180, 5).Should(gomega.BeNumerically("==", initialNodes+3))
@@ -562,7 +546,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		})
 		ginkgo.Context("scale-up with replicas=6", func() {
 			ginkgo.It("should not lead to errors and add futher 3 nodes to target cluster", func() {
-
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					machineDployment, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
 					machineDployment.Spec.Replicas = 6
@@ -571,7 +554,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				ginkgo.By("Checking for errors")
 				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
-				// check whether all the expected nodes are ready
 				ginkgo.By("Checking number of ready nodes are 6 more than initial")
 				gomega.Eventually(c.TargetCluster.GetNumberOfNodes, 180, 5).Should(gomega.BeNumerically("==", initialNodes+6))
 				gomega.Eventually(c.TargetCluster.GetNumberOfReadyNodes, 180, 5).Should(gomega.BeNumerically("==", initialNodes+6))
@@ -579,9 +561,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 		})
 		ginkgo.Context("scale-down with replicas=2", func() {
-			// rapidly scaling back to 2, leading to freezing and unfreezing
-			// check for freezing and unfreezing of the machine due to rapidly scale up and scale down in the logs of mcm
-
 			ginkgo.It("should not lead to errors and remove 4 nodes from target cluster", func() {
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					machineDployment, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
@@ -596,13 +575,14 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Eventually(c.TargetCluster.GetNumberOfNodes, 300, 5).Should(gomega.BeNumerically("==", initialNodes+2))
 				gomega.Eventually(c.TargetCluster.GetNumberOfReadyNodes, 300, 5).Should(gomega.BeNumerically("==", initialNodes+2))
 			})
+			// rapid scaling back to 2, should lead to freezing and unfreezing
 			ginkgo.It("should freeze and unfreeze machineset temporarily", func() {
 				if mcsession == nil {
 					// controllers running in pod
 					// Create log file from container log
-					mcmOutputFile, err := helpers.RotateLogFile(mcmLogFile)
+					mcmOutputFile, err := rotateLogFile(mcmLogFile)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
-					mcOutputFile, err := helpers.RotateLogFile(mcLogFile)
+					mcOutputFile, err := rotateLogFile(mcLogFile)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 					ginkgo.By("Reading container log is leading to no errors")
 					podList, err := c.ControlCluster.Clientset.CoreV1().Pods(controlClusterNamespace).List(metav1.ListOptions{
@@ -652,11 +632,9 @@ func (c *IntegrationTestFramework) ControllerTests() {
 			})
 		})
 		ginkgo.Context("updation to v2 machine-class and replicas=4", func() {
-			// update machine type -> machineDeployment.spec.template.spec.class.name = "test-mc-v2"
-			// scale up replicas by 4
-			// To-Do: Add check for rolling update completion (updatedReplicas check)
+			// Update machine type -> machineDeployment.spec.template.spec.class.name = "test-mc-v2"
+			// Also scale up replicas by 4
 			ginkgo.It("should upgrade machines and add more nodes to target", func() {
-				// wait for the 2400 seconds till machines updates
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					machineDployment, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
 					machineDployment.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
@@ -664,7 +642,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(machineDployment)
 					return updateErr
 				})
-				// check there is no error occurred
 				ginkgo.By("Checking for errors")
 				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
 				ginkgo.By("UpdatedReplicas to be 4")
@@ -694,7 +671,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.It("should not lead to errors and list only initial nodes", func() {
 					_, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get("test-machine-deployment", metav1.GetOptions{})
 					if err == nil {
-						//delete machine resource
 						ginkgo.By("Checking for errors")
 						gomega.Expect(c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Delete("test-machine-deployment", &metav1.DeleteOptions{})).Should(gomega.BeNil())
 						ginkgo.By("Waiting until number of ready nodes is equal to number of initial  nodes")
@@ -720,13 +696,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 //Cleanup performs rollback of original resources and removes any machines created by the test
 func (c *IntegrationTestFramework) Cleanup() {
-
+	ginkgo.By("Running Cleanup")
 	//running locally
 	if !(len(os.Getenv("mcContainerImage")) != 0 && len(os.Getenv("mcmContainerImage")) != 0) {
 		for i := 0; i < 5; i++ {
 			if mcsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller ")
-				outputFile, err := helpers.RotateLogFile(mcLogFile)
+				outputFile, err := rotateLogFile(mcLogFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gexec.Start(mcsession.Command, outputFile, outputFile)
 				break
@@ -736,7 +712,7 @@ func (c *IntegrationTestFramework) Cleanup() {
 		for i := 0; i < 5; i++ {
 			if mcmsession.ExitCode() != -1 {
 				ginkgo.By("Restarting Machine Controller Manager")
-				outputFile, err := helpers.RotateLogFile(mcmLogFile)
+				outputFile, err := rotateLogFile(mcmLogFile)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				gexec.Start(mcmsession.Command, outputFile, outputFile)
 				break

@@ -32,7 +32,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 	acceptedK8sTypes := regexp.MustCompile(`(Role|ClusterRole|RoleBinding|ClusterRoleBinding|ServiceAccount|CustomResourceDefinition|kind: Deployment)`)
 	acceptedMCMTypes := regexp.MustCompile(`(MachineClass|Machine)`)
 	fileAsString := string(fileR[:])
-	sepYamlfiles := strings.Split(fileAsString, "---")
+	sepYamlfiles := strings.Split(fileAsString, "---\n")
 	retObj := make([]runtime.Object, 0, len(sepYamlfiles))
 	retKind := make([]*schema.GroupVersionKind, 0, len(sepYamlfiles))
 	var retErr error
@@ -90,9 +90,6 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 
 // applyFile uses yaml to create resources in kubernetes
 func (c *Cluster) ApplyFile(filePath string, namespace string) error {
-	/* TO-DO: This function checks for the availability of filePath
-	if available, then apply that file to kubernetes cluster c
-	*/
 	runtimeobj, kind, err := parseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
@@ -146,9 +143,6 @@ func (c *Cluster) ApplyFile(filePath string, namespace string) error {
 
 // checkEstablished uses the specified name to check if it is established
 func (c *Cluster) checkEstablished(crdName string) error {
-	/* This function checks the CRD for an established status
-	if established status is not met, it will sleep until it meets
-	*/
 	err := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
 		crd, err := c.apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})
 		if err != nil {
@@ -184,7 +178,6 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 	}
 
 	for _, file := range files {
-		// log.Println(file)
 		fi, err := os.Stat(file)
 		if err != nil {
 			log.Println("Error: file does not exist!")
@@ -202,29 +195,11 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 				//Ignore error if it says the crd already exists
 				if !strings.Contains(err.Error(), "already exists") {
 					log.Printf("Failed to apply yaml file %s", file)
-					//return err
+					return err
 				}
 			}
 			log.Printf("file %s has been successfully applied to cluster", file)
 		}
 	}
 	return nil
-}
-
-/*
-RotateLogFile takes file name as input and returns a file object obtained by os.Create
-If the file exists already then it renames it so that a new file can be created
-*/
-func RotateLogFile(fileName string) (*os.File, error) {
-	/*
-	  startMachineController starts the machine controller
-	*/
-	if _, err := os.Stat(fileName); err == nil { // !strings.Contains(err.Error(), "no such file or directory") {
-		for i := 9; i > 0; i-- {
-			os.Rename(fmt.Sprintf("%s.%d", fileName, i), fmt.Sprintf("%s.%d", fileName, i+1))
-		}
-		os.Rename(fileName, fmt.Sprintf("%s.%d", fileName, 1))
-	}
-	fileObj, err := os.Create(fileName)
-	return fileObj, err
 }

@@ -8,11 +8,10 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
+// CloneRepo clones github repo locally.
+// This is required if there is no mcm container image tag supplied or
+// the clusters are not seed (control) and shoot (target) clusters
 func CloneRepo(source string, destinationDir string) error {
-	/* clones mcm repo locally.
-	This is required if there is no mcm container image tag supplied or
-	the clusters are not seed (control) and shoot (target) clusters
-	*/
 	fi, err := os.Stat(destinationDir)
 	if err == nil {
 		if fi.IsDir() {

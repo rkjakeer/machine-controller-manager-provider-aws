@@ -27,4 +27,4 @@ fi
 
 echo "Starting integration tests..."
 
-ginkgo -v --reportFile "${TMPDIR}report-"$(date "+%Y%m%d-%H:%M:%S").out
+ginkgo -v

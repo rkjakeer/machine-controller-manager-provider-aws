@@ -12,11 +12,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: machine-controller-manager
+      role: machine-controller-manager
   template:
     metadata:
       labels:
-        app: machine-controller-manager
+        role: machine-controller-manager
     spec:
       containers:
       - name: machine-controller-manager

@@ -90,7 +90,7 @@ func parseK8sYaml(filepath string) ([]runtime.Object, []*schema.GroupVersionKind
 }
 
 // applyFile uses yaml to create resources in kubernetes
-func (c *Cluster) ApplyFile(filePath string, namespace string) error {
+func (c *Cluster) applyFile(filePath string, namespace string) error {
 	runtimeobj, kind, err := parseK8sYaml(filePath)
 	if err == nil {
 		for key, obj := range runtimeobj {
@@ -182,12 +182,13 @@ func (c *Cluster) checkEstablished(crdName string) error {
 	return err
 }
 
+// ApplyFiles invokes ApplyFile on a each file
 func (c *Cluster) ApplyFiles(source string, namespace string) error {
 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if info.Mode().IsDir() {
 			log.Printf("%s is a directory.\n", path)
 		} else if info.Mode().IsRegular() {
-			err := c.ApplyFile(path, namespace)
+			err := c.applyFile(path, namespace)
 			if err != nil {
 				//Ignore error if it says the crd already exists
 				if !strings.Contains(err.Error(), "already exists") {
@@ -196,6 +197,89 @@ func (c *Cluster) ApplyFiles(source string, namespace string) error {
 				}
 			}
 			log.Printf("file %s has been successfully applied to cluster", path)
+		}
+		return nil
+	})
+	return err
+}
+
+// deleteResource uses yaml to create resources in kubernetes
+func (c *Cluster) deleteResource(filePath string, namespace string) error {
+	runtimeobj, kind, err := parseK8sYaml(filePath)
+	if err == nil {
+		for key, obj := range runtimeobj {
+			switch kind[key].Kind {
+			case "CustomResourceDefinition":
+				crd := obj.(*apiextensionsv1beta1.CustomResourceDefinition)
+				err := c.apiextensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					if strings.Contains(err.Error(), " not found") {
+					} else {
+						return err
+					}
+				}
+			case "MachineClass":
+				resource := obj.(*v1alpha1.MachineClass)
+				err := c.McmClient.MachineV1alpha1().MachineClasses(namespace).Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			case "Machine":
+				resource := obj.(*v1alpha1.Machine)
+				err := c.McmClient.MachineV1alpha1().Machines(namespace).Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			case "MachineDeployment":
+				resource := obj.(*v1alpha1.MachineDeployment)
+				err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			case "Deployment":
+				resource := obj.(*v1.Deployment)
+				err := c.Clientset.AppsV1().Deployments(namespace).Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			case "ClusterRoleBinding":
+				resource := obj.(*rbacv1bata1.ClusterRoleBinding)
+				for i := range resource.Subjects {
+					resource.Subjects[i].Namespace = namespace
+				}
+				err := c.Clientset.RbacV1beta1().ClusterRoleBindings().Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			case "ClusterRole":
+				resource := obj.(*rbacv1bata1.ClusterRole)
+				err := c.Clientset.RbacV1beta1().ClusterRoles().Delete(resource.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		return err
+	}
+	return nil
+}
+
+// DeleteResources invokes DeleteResource on a each file
+func (c *Cluster) DeleteResources(source string, namespace string) error {
+	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if info.Mode().IsDir() {
+			log.Printf("%s is a directory.\n", path)
+		} else if info.Mode().IsRegular() {
+			err := c.deleteResource(path, namespace)
+			if err != nil {
+				//Ignore error if it says the crd already exists
+				if !strings.Contains(err.Error(), " not found") {
+					log.Printf("Failed to remove resource %s", path)
+					return err
+				}
+			}
+			log.Printf("resource %s has been successfully removed from the cluster", path)
 		}
 		return nil
 	})

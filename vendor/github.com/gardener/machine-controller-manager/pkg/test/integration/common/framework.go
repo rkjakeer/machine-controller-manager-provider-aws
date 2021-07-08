@@ -109,7 +109,7 @@ func NewIntegrationTestFramework(resourcesTracker helpers.ResourcesTrackerInterf
 		timeout = time.Duration(intervals[0]) * time.Second
 	}
 	if len(intervals) > 1 {
-		pollingInterval = time.Duration(intervals[0]) * time.Second
+		pollingInterval = time.Duration(intervals[1]) * time.Second
 	}
 	c = &IntegrationTestFramework{
 		resourcesTracker: resourcesTracker,

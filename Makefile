@@ -18,6 +18,7 @@ IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-ma
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := AWS
 PROJECT_NAME        := gardener
+CONTROL_NAMESPACE 	:= <control-namespace>
 CONTROL_KUBECONFIG  := dev/control_kubeconfig.yaml
 TARGET_KUBECONFIG   := dev/target_kubeconfig.yaml
 
@@ -29,6 +30,10 @@ MC_IMAGE			:=
 # MCM_IMAGE			:= eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.39.0
 # MC_IMAGE			:= $(IMAGE_REPOSITORY):v0.7.0
 LEADER_ELECT 	    := "true"
+
+# If Integration Test Suite is to be run locally against clusters then export the below variable
+# with MCM deployment name in the cluster
+# MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME := machine-controller-manager
 
 #########################################
 # Rules for running helper scripts
